@@ -363,7 +363,7 @@ function EmpresaCard({
 // --- Página principal ---
 function EmpresasPageContent() {
   const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
-  const [viewMode, setViewMode] = useState<'home' | 'vendas' | 'contas_a_pagar'>('contas_a_pagar')
+  const [viewMode, setViewMode] = useState<'vendas' | 'contas_a_pagar'>('contas_a_pagar')
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
@@ -631,19 +631,8 @@ function EmpresasPageContent() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {viewMode !== 'home' && (
-            <button
-              onClick={() => setViewMode('home')}
-              className="p-2 rounded-lg bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-colors border border-dark-700"
-              title="Voltar"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
-          )}
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              {viewMode === 'home' ? 'Empresas' : viewMode === 'vendas' ? 'Empresas - Vendas' : 'Empresas - Contas a Pagar'}
-            </h1>
+            <h1 className="text-2xl font-bold text-white">Empresas</h1>
             <p className="text-dark-400 text-sm mt-1">Gerencie as empresas do seu BPO</p>
           </div>
         </div>
