@@ -363,7 +363,7 @@ function EmpresaCard({
 // --- Página principal ---
 function EmpresasPageContent() {
   const { empresas, recarregar, setEmpresaAtiva, empresaAtiva } = useEmpresa()
-  const [viewMode, setViewMode] = useState<'home' | 'vendas' | 'contas_a_pagar'>('home')
+  const [viewMode, setViewMode] = useState<'home' | 'vendas' | 'contas_a_pagar'>('contas_a_pagar')
   const [showForm, setShowForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
@@ -892,32 +892,7 @@ function EmpresasPageContent() {
         </div>
       )}
 
-      {viewMode === 'home' && !showForm && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <button
-            onClick={() => setViewMode('vendas')}
-            className="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm border border-dark-700 hover:border-blue-500/50 rounded-3xl p-8 sm:p-12 text-left transition-all hover:bg-dark-800 shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="text-5xl sm:text-6xl mb-4 group-hover:scale-110 transition-transform duration-300 relative z-10">🛒</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 relative z-10 group-hover:text-blue-400 transition-colors">Vendas</h2>
-            <p className="text-dark-400 text-sm sm:text-base relative z-10">Acesse as configurações e os cadastros focados nas integrações de vendas (Datacar).</p>
-          </button>
-
-          <button
-            onClick={() => setViewMode('contas_a_pagar')}
-            className="group relative overflow-hidden bg-dark-800/50 backdrop-blur-sm border border-dark-700 hover:border-emerald-500/50 rounded-3xl p-8 sm:p-12 text-left transition-all hover:bg-dark-800 shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="text-5xl sm:text-6xl mb-4 group-hover:scale-110 transition-transform duration-300 relative z-10">💼</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 relative z-10 group-hover:text-emerald-400 transition-colors">Contas a Pagar</h2>
-            <p className="text-dark-400 text-sm sm:text-base relative z-10">Acesse as integrações financeiras e importação de fornecedores (Conta Azul).</p>
-          </button>
-        </div>
-      )}
-
-      {viewMode !== 'home' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {empresas
             .filter(emp => viewMode === 'vendas' ? (emp.tipo_empresa === 'vendas' || emp.tipo_empresa === 'ambos') : (emp.tipo_empresa === 'financeiro' || emp.tipo_empresa === 'ambos'))
             .map((empresa) => {
@@ -951,7 +926,6 @@ function EmpresasPageContent() {
             </div>
           )}
         </div>
-      )}
     </div>
   )
 }
