@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Operações de IA podem demorar
-
-const DEFAULT_MODEL = 'gemini-1.5-flash';
-
-const fileToBase64 = async (file: File): Promise<string> => {
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  return buffer.toString('base64');
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,32 +13,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ 
-        error: 'Chave da API Gemini não configurada. Adicione GEMINI_API_KEY no arquivo .env.' 
-      }, { status: 500 });
+    if (!process.env.PDF24_API_KEY) {
+      return NextResponse.json({ error: 'Chave da API PDF24 não configurada.' }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const base64 = await fileToBase64(file);
-
-    let prompt = '';
+    let questtext = '';
 
     if (tipo === 'dda') {
-      prompt = `Analise a imagem deste DDA (Débito Direto Autorizado) ou boleto e extraia os dados.
+      questtext = `Analise a imagem deste DDA (Débito Direto Autorizado) ou boleto e extraia os dados.
 Retorne APENAS um JSON estrito no seguinte formato (uma lista de objetos):
 [
   {
     "beneficiario": "Nome da empresa/recebedor",
-    "documento": "CNPJ, CPF ou código do boleto (string)",
+    "documento": "CNPJ, CPF ou código do boleto",
     "valor": 1234.56,
     "data_vencimento": "YYYY-MM-DD"
   }
 ]
-Retorne APENAS o JSON array, sem nenhuma formatação Markdown (sem \`\`\`json).`;
+Se houver mais de um pagamento, adicione na lista. Retorne APENAS o JSON array, sem nenhuma formatação Markdown (sem \`\`\`json).`;
     } else {
-      prompt = `Analise este arquivo de Folha de Pagamento ou Recibo e extraia os pagamentos.
+      questtext = `Analise este arquivo de Folha de Pagamento ou Recibo e extraia os pagamentos.
 Retorne APENAS um JSON estrito no seguinte formato (uma lista de objetos):
 [
   {
@@ -62,47 +47,64 @@ Retorne APENAS um JSON estrito no seguinte formato (uma lista de objetos):
 Retorne APENAS o JSON array, sem nenhuma formatação Markdown (sem \`\`\`json).`;
     }
 
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
-    
-    console.log(`Enviando para Gemini (${tipo}) - Arquivo: ${file.name}, Tamanho: ${file.size}`);
+    const apiFormData = new FormData();
+    apiFormData.append('file', file);
+    apiFormData.append('questtext', questtext);
 
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType: file.type || 'image/jpeg', data: base64 } },
-          { text: prompt }
-        ]
-      }],
-      generationConfig: { responseMimeType: "application/json" }
+    // Endpoint 27 da Cross Service Solutions (PDF24 API) para Extração de Texto com IA
+    const response = await fetch('https://api.cross-service-solutions.com/solutions/solutions/api/27', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.PDF24_API_KEY}`
+        // Não definir Content-Type ao usar FormData no fetch, o navegador/node gerencia o boundary automaticamente
+      },
+      body: apiFormData
     });
 
-    const responseText = result.response.text();
-    console.log("Resposta Gemini:", responseText);
-
-    if (!responseText) {
-      throw new Error("A IA não retornou nenhum texto.");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Erro na API PDF24:', errorText);
+      return NextResponse.json({ error: 'Falha ao processar arquivo no PDF24.' }, { status: response.status });
     }
 
-    let parsedData = [];
+    const jsonResult = await response.json();
+    
+    // Log para entendermos a resposta real da API (ajuda no debug na Vercel)
+    console.log('Resposta bruta do PDF24:', JSON.stringify(jsonResult));
+
+    // A API do PDF24 pode retornar a resposta direta (output/content/result) 
+    // ou pode retornar um job assíncrono { id: 100577, status: "pending" }
+    let llmResponse = jsonResult.output || jsonResult.content || jsonResult.result 
+      || jsonResult.text || jsonResult.answer || jsonResult.response || jsonResult.data || '';
+    
+    if (!llmResponse && jsonResult.status === 'pending') {
+      return NextResponse.json({ error: 'O PDF24 iniciou um processamento em fila (status pending). O app não suporta filas nativamente ainda.', raw: jsonResult }, { status: 500 });
+    }
+
+    if (typeof llmResponse !== 'string') {
+        llmResponse = JSON.stringify(llmResponse);
+    }
+
     try {
-      parsedData = JSON.parse(responseText);
-      if (!Array.isArray(parsedData)) {
-        parsedData = [parsedData];
+      // 1ª tentativa: procurar por um JSON array válido dentro do texto usando regex
+      const jsonMatch = llmResponse.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+          const dadosExtraidos = JSON.parse(jsonMatch[0]);
+          return NextResponse.json({ dados: Array.isArray(dadosExtraidos) ? dadosExtraidos : [dadosExtraidos] });
+      } else {
+          // 2ª tentativa: limpar strings markdown que as IAs costumam colocar
+          let cleaned = llmResponse.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+          const dadosExtraidos = JSON.parse(cleaned);
+          const dados = Array.isArray(dadosExtraidos) ? dadosExtraidos : [dadosExtraidos];
+          return NextResponse.json({ dados });
       }
     } catch (parseError) {
-      console.error('Erro ao fazer parse do JSON retornado pela IA:', responseText);
-      return NextResponse.json({ error: 'A inteligência não conseguiu extrair um formato válido.', raw: responseText }, { status: 500 });
+      console.error('Erro ao fazer parse do JSON retornado pela IA:', llmResponse);
+      return NextResponse.json({ error: 'A inteligência não conseguiu extrair um formato válido.', raw: jsonResult }, { status: 500 });
     }
 
-    return NextResponse.json({ dados: parsedData });
-
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro interno na rota do conversor:', error);
-    const msg = error.message || "";
-    if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded')) {
-      return NextResponse.json({ error: 'O sistema da IA está temporariamente sobrecarregado. Tente novamente em instantes.' }, { status: 503 });
-    }
-    return NextResponse.json({ error: `Erro na leitura: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 });
   }
 }
