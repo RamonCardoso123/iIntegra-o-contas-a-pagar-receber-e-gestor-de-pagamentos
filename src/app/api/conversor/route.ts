@@ -90,7 +90,7 @@ Retorne APENAS o JSON, sem nenhuma formatação Markdown (sem \`\`\`json).`;
       }
     } catch (parseError) {
       console.error('Erro ao fazer parse do JSON retornado pela IA:', llmResponse);
-      return NextResponse.json({ error: 'A inteligência não conseguiu extrair um formato válido.', raw: llmResponse }, { status: 500 });
+      return NextResponse.json({ error: 'A inteligência não conseguiu extrair um formato válido.', raw: jsonResult }, { status: 500 });
     }
 
   } catch (error) {
