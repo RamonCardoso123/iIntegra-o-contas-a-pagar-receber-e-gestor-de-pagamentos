@@ -70,15 +70,24 @@ Retorne APENAS o JSON, sem nenhuma formatação Markdown (sem \`\`\`json).`;
     const jsonResult = await response.json();
     
     // O PDF24 geralmente devolve a resposta do LLM dentro de alguma propriedade (ex: output, ou content)
-    // De acordo com o print da API: O JSON retorna 'output' como a string final.
-    let llmResponse = jsonResult.output || '';
+    let llmResponse = jsonResult.output || jsonResult.content || '';
     
-    // As vezes a IA responde com blocos markdown mesmo pedindo para não fazer
-    llmResponse = llmResponse.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+    if (typeof llmResponse !== 'string') {
+        llmResponse = JSON.stringify(llmResponse);
+    }
 
     try {
-      const dadosExtraidos = JSON.parse(llmResponse);
-      return NextResponse.json({ dados: dadosExtraidos });
+      // Tenta achar o JSON array na string usando regex
+      const jsonMatch = llmResponse.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+          const dadosExtraidos = JSON.parse(jsonMatch[0]);
+          return NextResponse.json({ dados: dadosExtraidos });
+      } else {
+          // Fallback parsing
+          let cleaned = llmResponse.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+          const dadosExtraidos = JSON.parse(cleaned);
+          return NextResponse.json({ dados: dadosExtraidos });
+      }
     } catch (parseError) {
       console.error('Erro ao fazer parse do JSON retornado pela IA:', llmResponse);
       return NextResponse.json({ error: 'A inteligência não conseguiu extrair um formato válido.', raw: llmResponse }, { status: 500 });
