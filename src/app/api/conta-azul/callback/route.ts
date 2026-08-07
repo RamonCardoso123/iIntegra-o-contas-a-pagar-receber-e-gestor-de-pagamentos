@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
       const empresaExistente = empresasExistentes && empresasExistentes.length > 0 ? empresasExistentes[0] : null
 
       if (empresaExistente) {
-        // CENÁRIO A: A empresa já existe (Re-autenticação por token expirado ou link duplicado)
-        await supabaseAdmin
+          // CENÁRIO A: A empresa já existe (Re-autenticação por token expirado ou link duplicado)
+        const { error: errUpdateA } = await supabaseAdmin
           .from('empresas')
           .update({
             access_token_conta_azul: tokens.access_token,
@@ -91,6 +91,8 @@ export async function GET(req: NextRequest) {
             conta_azul_connected: true
           })
           .eq('id', empresaExistente.id)
+
+        if (errUpdateA) throw new Error(`Erro ao atualizar empresa existente: ${errUpdateA.message}`)
 
         // Se o usuário usou um "Card em Branco" (cujo state != empresaExistente.id), apagamos o card em branco
         if (state !== empresaExistente.id) {
@@ -112,7 +114,7 @@ export async function GET(req: NextRequest) {
         // CENÁRIO B: Empresa não existe. Preenche o card em branco com os dados reais
         const novoNome = infoCa.nome_fantasia || infoCa.razao_social || infoCa.nome
         
-        await supabaseAdmin
+        const { error: errUpdateB } = await supabaseAdmin
           .from('empresas')
           .update({
             nome: novoNome,
@@ -126,10 +128,12 @@ export async function GET(req: NextRequest) {
             conta_azul_connected: true
           })
           .eq('id', state)
+
+        if (errUpdateB) throw new Error(`Erro ao atualizar nova empresa: ${errUpdateB.message}`)
       }
     } else {
       // Fallback: Atualiza apenas os tokens no card em branco
-      await supabaseAdmin
+      const { error: errUpdateC } = await supabaseAdmin
         .from('empresas')
         .update({
           access_token_conta_azul: tokens.access_token,
@@ -138,6 +142,8 @@ export async function GET(req: NextRequest) {
           conta_azul_connected: true
         })
         .eq('id', state)
+        
+      if (errUpdateC) throw new Error(`Erro no fallback de atualização: ${errUpdateC.message}`)
     }
 
     await supabaseAdmin.from('logs_integracao').insert({
