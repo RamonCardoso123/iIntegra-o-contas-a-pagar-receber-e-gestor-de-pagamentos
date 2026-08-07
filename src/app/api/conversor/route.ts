@@ -69,11 +69,34 @@ Retorne APENAS o JSON, sem nenhuma formatação Markdown (sem \`\`\`json).`;
 
     const jsonResult = await response.json();
     
-    // O PDF24 geralmente devolve a resposta do LLM dentro de alguma propriedade (ex: output, ou content)
-    let llmResponse = jsonResult.output || jsonResult.content || '';
+    console.log('PDF24 response keys:', Object.keys(jsonResult));
+    console.log('PDF24 full response:', JSON.stringify(jsonResult).substring(0, 500));
+    
+    // A API pode retornar a resposta em várias propriedades diferentes
+    let llmResponse = jsonResult.output || jsonResult.content || jsonResult.result 
+      || jsonResult.text || jsonResult.answer || jsonResult.response || jsonResult.data || '';
+    
+    // Se nenhuma propriedade conhecida, tenta usar o objeto inteiro como string
+    if (!llmResponse && typeof jsonResult === 'object') {
+      const values = Object.values(jsonResult).filter(v => typeof v === 'string' && v.length > 10);
+      if (values.length > 0) {
+        llmResponse = values[0] as string;
+      }
+    }
     
     if (typeof llmResponse !== 'string') {
-        llmResponse = JSON.stringify(llmResponse);
+      // Se já é um array/objeto, tenta usar diretamente
+      if (Array.isArray(llmResponse)) {
+        return NextResponse.json({ dados: llmResponse });
+      }
+      llmResponse = JSON.stringify(llmResponse);
+    }
+
+    if (!llmResponse || llmResponse === '""' || llmResponse === '{}') {
+      return NextResponse.json({ 
+        error: 'A API retornou uma resposta vazia. Tente enviar o arquivo novamente.', 
+        debug: jsonResult 
+      }, { status: 500 });
     }
 
     try {
@@ -86,7 +109,9 @@ Retorne APENAS o JSON, sem nenhuma formatação Markdown (sem \`\`\`json).`;
           // Fallback parsing
           let cleaned = llmResponse.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
           const dadosExtraidos = JSON.parse(cleaned);
-          return NextResponse.json({ dados: dadosExtraidos });
+          // Se o resultado é um objeto único (não array), coloca dentro de array
+          const dados = Array.isArray(dadosExtraidos) ? dadosExtraidos : [dadosExtraidos];
+          return NextResponse.json({ dados });
       }
     } catch (parseError) {
       console.error('Erro ao fazer parse do JSON retornado pela IA:', llmResponse);

@@ -146,7 +146,7 @@ export default function GestaoPagamentos() {
         .insert({
           empresa_id: empresaAtiva.id,
           fornecedor: pagamento.origem === 'DDA' ? pagamento.beneficiario : pagamento.fornecedor,
-          cnpj_fornecedor: pagamento.origem === 'DDA' ? null : pagamento.cpf_cnpj,
+          doc: pagamento.origem === 'DDA' ? pagamento.documento : pagamento.cpf_cnpj,
           valor: pagamento.valor,
           vencimento: pagamento.data_vencimento,
           emissao: pagamento.data_vencimento,
