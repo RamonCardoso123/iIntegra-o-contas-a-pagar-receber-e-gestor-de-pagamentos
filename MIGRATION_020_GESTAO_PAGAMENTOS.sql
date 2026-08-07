@@ -3,6 +3,10 @@
 -- Cole no SQL Editor do Supabase e clique RUN
 -- ============================================================
 
+-- 0. REMOVER RESTRIÇÕES ANTIGAS
+-- Como a tabela já existia e pode ter um "check constraint" limitando os tipos, vamos remover:
+ALTER TABLE public.agendamentos DROP CONSTRAINT IF EXISTS agendamentos_tipo_check;
+
 -- 1. ADICIONAR COLUNAS FALTANDO NA TABELA agendamentos (que já existe)
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS fornecedor TEXT;
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS tipo TEXT;
