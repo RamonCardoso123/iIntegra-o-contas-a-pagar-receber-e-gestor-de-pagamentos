@@ -16,6 +16,7 @@ import toast from 'react-hot-toast'
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Contas a Pagar', href: '/contas-pagar', icon: ArrowDownCircle, badge: 'ATIVO' },
+  { label: 'Gestão de Pagamentos', href: '/gestao-pagamentos', icon: Database, badge: 'NOVO' },
   { label: 'Contas a Receber', href: '/contas-receber', icon: ArrowUpCircle, badge: 'EM BREVE', disabled: true },
   { label: 'Empresas', href: '/empresas', icon: Building2 },
   { label: 'Configuracoes', href: '/configuracoes', icon: Settings, disabled: true },
