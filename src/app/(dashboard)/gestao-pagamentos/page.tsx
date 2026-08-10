@@ -145,6 +145,7 @@ export default function GestaoPagamentos() {
             empresa_id: empresaAtiva.id,
             fornecedor: item.fornecedor,
             tipo: item.tipo || data.tipoCalculo || 'Folha',
+            categoria: (item.tipo || data.tipoCalculo) === 'Adiantamento' ? 'Adiantamento Salarial' : 'Salários',
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: vencimentoEspecifico || dataAtual,
             descricao: item.descricao,
@@ -567,7 +568,7 @@ export default function GestaoPagamentos() {
                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                         </td>
                         <td className="px-6 py-4 font-bold text-white text-sm">Folha de Pagamento</td>
-                        <td className="px-6 py-4 text-sm text-dark-300">Recursos Humanos</td>
+                        <td className="px-6 py-4 text-sm text-dark-300">Salários / Adiantamentos</td>
                         <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosFolha.length} colaboradores</td>
                         <td className="px-6 py-4">
                            <span className="text-[10px] font-bold px-3 py-1 rounded bg-dark-700/50 text-dark-300 border border-dark-600 uppercase tracking-wider">—</span>

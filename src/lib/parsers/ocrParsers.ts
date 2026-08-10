@@ -107,37 +107,33 @@ export function parseFolhaFromOCR(texto: string) {
     }
     
     // 2. Extrair os pagamentos
-    // Padrão da linha de funcionário: (Código numérico) (Nome) (CPF opcional) (Valor)
+    // Vamos procurar por qualquer linha que termine com um valor monetário.
     // Ex: 3 ERNANE DIAS VIANA GREGORIO 010.866.866-59 2.139,56
-    // Ex: 55 ANDRE LUIS DOS SANTOS GOMES 788,84
-    const regexFuncionario = /^(\d+)\s+(.+?)(?:\s+(\d{3}\.\d{3}\.\d{3}-\d{2}))?\s+(\d{1,3}(?:\.\d{3})*,\d{2})$/
-    const regexAlternativa = /^(\d+)\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})$/
+    // Ex: ANDRE LUIS DOS SANTOS GOMES 788,84
+    const regexLinhaDinheiro = /(?:R\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})$/
 
     for (const linha of linhas) {
         let fornecedor = ''
         let cpf = ''
         let valorStr = ''
         
-        let match = linha.match(regexFuncionario)
-        if (match) {
-            fornecedor = match[2].trim()
-            cpf = match[3] ? match[3].trim() : ''
-            valorStr = match[4]
-        } else {
-            // Tentar alternativa (sem CPF)
-            match = linha.match(regexAlternativa)
-            if (match) {
-                // Verificar se a parte do nome não termina num formato estranho
-                fornecedor = match[2].trim()
-                valorStr = match[3]
-                
-                // Se o nome tiver CPF grudado no final por erro de OCR, extrair
-                const matchCpfInName = fornecedor.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})$/)
-                if (matchCpfInName) {
-                    cpf = matchCpfInName[1]
-                    fornecedor = fornecedor.replace(matchCpfInName[1], '').trim()
-                }
+        const matchValor = linha.match(regexLinhaDinheiro)
+        if (matchValor) {
+            valorStr = matchValor[1]
+            
+            // Remove o valor da linha para sobrar o nome e possível CPF
+            let resto = linha.replace(matchValor[0], '').trim()
+            
+            // Tenta achar CPF
+            const matchCpf = resto.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})/)
+            if (matchCpf) {
+                cpf = matchCpf[1]
+                resto = resto.replace(matchCpf[0], '').trim()
             }
+            
+            // Tira numeros perdidos no começo (como matrícula)
+            resto = resto.replace(/^\d+\s+/, '').trim()
+            fornecedor = resto
         }
         
         if (fornecedor && valorStr) {
