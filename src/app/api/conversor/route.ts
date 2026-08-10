@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiFormData = new FormData();
+    apiFormData.append('apikey', process.env.OCR_SPACE_API_KEY || '');
     apiFormData.append('file', file);
     apiFormData.append('language', 'por');
     apiFormData.append('isTable', 'true');
@@ -36,7 +37,10 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Erro na API OCR.space:', errorText);
-      return NextResponse.json({ error: 'Falha ao processar arquivo no OCR.space.' }, { status: response.status });
+      return NextResponse.json({ 
+          error: 'Falha ao processar arquivo no OCR.space.', 
+          detalhes: errorText 
+      }, { status: response.status });
     }
 
     const jsonResult = await response.json();
