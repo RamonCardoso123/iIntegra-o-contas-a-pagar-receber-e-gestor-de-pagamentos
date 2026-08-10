@@ -81,7 +81,10 @@ export function parseDDAFromOCR(texto: string) {
     } else {
         // Possível linha apenas com nome do beneficiário
         if (linha.length > 5 && !linha.includes('R$') && !linha.match(regexData)) {
-            beneficiarioAtual = linha
+            // Não queremos que o CNPJ seja confundido com o nome do beneficiário
+            if (!linha.match(regexCNPJ)) {
+                beneficiarioAtual = linha
+            }
         }
     }
   }
@@ -124,6 +127,18 @@ export function parseFolhaFromOCR(texto: string) {
             // Remove o valor da linha para sobrar o nome e possível CPF
             let resto = linha.replace(matchValor[0], '').trim()
             
+            // Ignorar linhas que claramente são rodapés ou totais
+            const linhaLower = resto.toLowerCase()
+            if (linhaLower.includes('total') || 
+                linhaLower.includes('estagiários') || 
+                linhaLower.includes('contribuintes') || 
+                linhaLower.includes('líquidos') ||
+                linhaLower.includes('bruto') ||
+                linhaLower.includes('líquido') ||
+                linhaLower.includes('empresa:')) {
+                continue // Pula para a próxima linha
+            }
+            
             // Tenta achar CPF
             const matchCpf = resto.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})/)
             if (matchCpf) {
@@ -131,8 +146,10 @@ export function parseFolhaFromOCR(texto: string) {
                 resto = resto.replace(matchCpf[0], '').trim()
             }
             
-            // Tira numeros perdidos no começo (como matrícula)
+            // Tira numeros perdidos no começo (como matrícula) e lixo comum como "Empregados"
+            resto = resto.replace(/^(Empregados|Empregado|Empre)\s*/i, '').trim()
             resto = resto.replace(/^\d+\s+/, '').trim()
+            
             fornecedor = resto
         }
         
