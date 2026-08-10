@@ -24,6 +24,10 @@ export default function GestaoPagamentos() {
   const [importando, setImportando] = useState(false)
   const [exportando, setExportando] = useState(false)
   
+  const [modalFolhaAberto, setModalFolhaAberto] = useState(false)
+  const [arquivoFolha, setArquivoFolha] = useState<File | null>(null)
+  const [vencimentoFolha, setVencimentoFolha] = useState(new Date().toISOString().split('T')[0])
+  
   const [menuImportarAberto, setMenuImportarAberto] = useState(false)
   const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false)
   const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false)
@@ -65,9 +69,22 @@ export default function GestaoPagamentos() {
     const file = e.target.files?.[0]
     if (!file || !empresaAtiva) return
 
+    if (tipo === 'folha') {
+      setArquivoFolha(file)
+      setMenuImportarAberto(false)
+      setModalFolhaAberto(true)
+      return
+    }
+
+    await processarArquivo(file, 'dda')
+  }
+
+  async function processarArquivo(file: File, tipo: 'dda' | 'folha', vencimentoEspecifico?: string) {
+    if (!empresaAtiva) return
     setImportando(true)
-    toast.loading('Enviando para a Inteligência Artificial...', { id: 'import' })
+    toast.loading('Extraindo dados do arquivo...', { id: 'import' })
     setMenuImportarAberto(false)
+    setModalFolhaAberto(false)
     
     const formData = new FormData()
     formData.append('file', file)
@@ -96,14 +113,32 @@ export default function GestaoPagamentos() {
             data_vencimento: item.data_vencimento || dataAtual
           })
         } else {
+          // Lógica de Competência
+          let competencia = ''
+          if (vencimentoEspecifico && data.tipoCalculo) {
+              const [ano, mes, dia] = vencimentoEspecifico.split('-')
+              const dateVenc = new Date(Number(ano), Number(mes) - 1, Number(dia))
+              if (data.tipoCalculo === 'Folha Mensal') {
+                  // 1 mês antes
+                  dateVenc.setMonth(dateVenc.getMonth() - 1)
+                  competencia = dateVenc.toISOString().split('T')[0]
+              } else if (data.tipoCalculo === 'Adiantamento') {
+                  // 1º dia do mês seguinte
+                  dateVenc.setMonth(dateVenc.getMonth() + 1)
+                  dateVenc.setDate(1)
+                  competencia = dateVenc.toISOString().split('T')[0]
+              }
+          }
+
           await supabase.from('agendamentos').insert({
             empresa_id: empresaAtiva.id,
             fornecedor: item.fornecedor,
-            tipo: item.tipo || 'Folha',
+            tipo: item.tipo || data.tipoCalculo || 'Folha',
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: item.data_vencimento || dataAtual,
+            data_vencimento: vencimentoEspecifico || dataAtual,
             descricao: item.descricao,
-            cpf_cnpj: item.cpf_cnpj
+            cpf_cnpj: item.cpf_cnpj,
+            competencia: competencia
           })
         }
         count++
@@ -115,7 +150,8 @@ export default function GestaoPagamentos() {
       toast.error(err.message, { id: 'import' })
     } finally {
       setImportando(false)
-      e.target.value = ''
+      const inputs = document.querySelectorAll('input[type="file"]')
+      inputs.forEach(input => (input as HTMLInputElement).value = '')
     }
   }
 
@@ -445,6 +481,46 @@ export default function GestaoPagamentos() {
         empresas={empresas} 
         onSuccess={carregarPagamentos} 
       />
+
+      {modalFolhaAberto && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#11141c] border border-dark-600 rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-bold text-white mb-4">Importar Folha de Pagamento</h2>
+            <p className="text-dark-300 text-sm mb-6">Por favor, informe a data de vencimento desta folha. A competência será calculada automaticamente.</p>
+            
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-dark-400 uppercase tracking-widest mb-2">
+                Data de Vencimento
+              </label>
+              <input 
+                type="date"
+                value={vencimentoFolha}
+                onChange={e => setVencimentoFolha(e.target.value)}
+                className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-4 py-3 outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setModalFolhaAberto(false)}
+                className="px-4 py-2 text-dark-300 hover:text-white transition-colors text-sm font-semibold"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  if (arquivoFolha) {
+                    processarArquivo(arquivoFolha, 'folha', vencimentoFolha)
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-emerald-900/20"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

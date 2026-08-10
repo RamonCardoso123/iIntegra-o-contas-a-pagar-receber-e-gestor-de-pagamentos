@@ -19,6 +19,7 @@ ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS cpf_cnpj TEXT;
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS categoria TEXT;
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS conta_pagamento TEXT;
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS anexo_url TEXT;
+ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS competencia TEXT;
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS data_lancamento TIMESTAMPTZ DEFAULT now();
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();

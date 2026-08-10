@@ -316,6 +316,7 @@ CREATE TABLE IF NOT EXISTS public.agendamentos (
     categoria TEXT,
     conta_pagamento TEXT,
     anexo_url TEXT,
+    competencia TEXT,
     data_lancamento TIMESTAMPTZ DEFAULT now(),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
