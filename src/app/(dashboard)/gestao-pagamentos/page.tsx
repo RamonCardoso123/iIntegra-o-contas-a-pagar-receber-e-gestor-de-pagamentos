@@ -265,8 +265,29 @@ export default function GestaoPagamentos() {
   }
 
   const handleAgendarEmLote = async (ids: string[]) => {
-    toast.success(`${ids.length} item(ns) agendado(s)!`)
-    setSelecionados([])
+    if (!confirm(`Deseja alterar ${ids.length} itens para AGENDADO?`)) return
+    try {
+      await supabase.from('pagamentos_dda').update({ status: 'agendado' }).in('id', ids)
+      await supabase.from('agendamentos').update({ status: 'agendado' }).in('id', ids)
+      toast.success('Status atualizado para Agendado!')
+      setSelecionados([])
+      carregarPagamentos()
+    } catch(e) {
+      toast.error('Erro ao atualizar')
+    }
+  }
+
+  const handleVoltarAbertoEmLote = async (ids: string[]) => {
+    if (!confirm(`Deseja alterar ${ids.length} itens para EM ABERTO?`)) return
+    try {
+      await supabase.from('pagamentos_dda').update({ status: 'aberto' }).in('id', ids)
+      await supabase.from('agendamentos').update({ status: 'aberto' }).in('id', ids)
+      toast.success('Status atualizado para Em Aberto!')
+      setSelecionados([])
+      carregarPagamentos()
+    } catch(e) {
+      toast.error('Erro ao atualizar')
+    }
   }
 
   const toggleSelectAll = () => {
@@ -582,13 +603,19 @@ export default function GestaoPagamentos() {
                           </span>
                         </td>
                         <td className="px-6 py-4 font-bold text-white text-sm">
-                          {pag.fornecedor || '—'}
+                          {pag.fornecedor || pag.beneficiario || '—'}
                         </td>
                         <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
                           {pag.categoria || '—'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-dark-300 max-w-[150px] truncate">
-                          {pag.descricao || '—'}
+                        <td className="px-6 py-4 text-sm text-dark-300 max-w-[200px] truncate" title={
+                          pag.descricao 
+                            ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
+                            : (pag.documento ? `Doc: ${pag.documento}` : '—')
+                        }>
+                          {pag.descricao 
+                            ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
+                            : (pag.documento ? `Doc: ${pag.documento}` : '—')}
                         </td>
                         <td className="px-6 py-4">
                           <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
@@ -715,6 +742,7 @@ export default function GestaoPagamentos() {
         lancamentos={pagamentosDda}
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
+        onVoltarAberto={handleVoltarAbertoEmLote}
         onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
         onToggleStatus={toggleStatus}
       />
@@ -726,6 +754,7 @@ export default function GestaoPagamentos() {
         lancamentos={pagamentosFolha}
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
+        onVoltarAberto={handleVoltarAbertoEmLote}
         onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
         onToggleStatus={toggleStatus}
       />

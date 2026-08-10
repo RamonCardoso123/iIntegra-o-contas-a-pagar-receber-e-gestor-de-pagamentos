@@ -10,6 +10,7 @@ interface ModalDetalhesProps {
   lancamentos: any[]
   onDelete: (ids: string[]) => void
   onAgendar: (ids: string[]) => void
+  onVoltarAberto: (ids: string[]) => void
   onEditarItem?: (item: any) => void
   onTransferirItem?: (item: any) => void
   onToggleStatus?: (item: any) => void
@@ -22,6 +23,7 @@ export default function ModalDetalhesLancamentos({
   lancamentos,
   onDelete,
   onAgendar,
+  onVoltarAberto,
   onEditarItem,
   onTransferirItem,
   onToggleStatus
@@ -70,24 +72,44 @@ export default function ModalDetalhesLancamentos({
             </button>
           </div>
 
-          {/* Action Bar (Top) */}
+           {/* Action Bar (Top) */}
           <div className="h-10 flex items-center justify-end">
-             {selecionados.length > 0 && (
-                <div className="flex items-center gap-2 animate-fade-in">
-                   <button 
-                     onClick={() => { onDelete(selecionados); setSelecionados([]) }}
-                     className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                   >
-                     Excluir ({selecionados.length})
-                   </button>
-                   <button 
-                     onClick={() => { onAgendar(selecionados); setSelecionados([]) }}
-                     className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-                   >
-                     Voltar para Aberto
-                   </button>
-                </div>
-             )}
+             {selecionados.length > 0 && (() => {
+                const hasAberto = selecionados.some(id => {
+                  const item = lancamentos.find(l => l.id === id)
+                  return item && item.status !== 'agendado'
+                })
+                const hasAgendado = selecionados.some(id => {
+                  const item = lancamentos.find(l => l.id === id)
+                  return item && item.status === 'agendado'
+                })
+                return (
+                  <div className="flex items-center gap-2 animate-fade-in">
+                     <button 
+                       onClick={() => { onDelete(selecionados); setSelecionados([]) }}
+                       className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                     >
+                       Excluir ({selecionados.length})
+                     </button>
+                     {hasAberto && (
+                       <button 
+                         onClick={() => { onAgendar(selecionados); setSelecionados([]) }}
+                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                       >
+                         Agendar
+                       </button>
+                     )}
+                     {hasAgendado && (
+                       <button 
+                         onClick={() => { onVoltarAberto(selecionados); setSelecionados([]) }}
+                         className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                       >
+                         Voltar para Aberto
+                       </button>
+                     )}
+                  </div>
+                )
+             })()}
           </div>
         </div>
 
@@ -107,7 +129,6 @@ export default function ModalDetalhesLancamentos({
                   <th className="px-6 py-4">Beneficiário</th>
                   <th className="px-6 py-4">Categoria</th>
                   <th className="px-6 py-4">Descrição</th>
-                  <th className="px-6 py-4">Doc.</th>
                   <th className="px-6 py-4">Vencimento</th>
                   <th className="px-6 py-4">Situação</th>
                   <th className="px-6 py-4">Valor</th>
@@ -123,11 +144,12 @@ export default function ModalDetalhesLancamentos({
                   </tr>
                 ) : (
                   lancamentos.map((pag, idx) => {
-                     const doc = pag.documento || pag.cpf_cnpj || '—'
-                     const nome = pag.beneficiario || pag.fornecedor || '—'
+                     const docStr = pag.documento || pag.cpf_cnpj ? `Doc: ${pag.documento || pag.cpf_cnpj}` : ''
+                     const descFinal = pag.descricao ? `${pag.descricao}${docStr ? ' - ' + docStr : ''}` : (docStr || '—')
+                     const nome = pag.fornecedor || pag.beneficiario || '—'
                      
                      return (
-                        <tr key={pag.id || idx} className={`transition-colors ${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'hover:bg-dark-800/30'}`}>
+                        <tr key={pag.id || idx} className={`transition-colors border-b border-dark-700/50 ${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'hover:bg-dark-800/30'}`}>
                            <td className="px-6 py-4 text-center">
                               <input 
                                 type="checkbox" 
@@ -142,11 +164,8 @@ export default function ModalDetalhesLancamentos({
                            <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
                               {pag.categoria || '—'}
                            </td>
-                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[150px] truncate">
-                              {pag.descricao || '—'}
-                           </td>
-                           <td className="px-6 py-4 text-sm text-dark-300">
-                              {doc}
+                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[200px] truncate" title={descFinal}>
+                              {descFinal}
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
