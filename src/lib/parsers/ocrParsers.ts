@@ -33,11 +33,11 @@ export function parseDDAFromOCR(texto: string) {
       // Remover valor e data da linha para sobrar beneficiário e doc
       let resto = linha.replace(matchValor[0], '').replace(matchData[0], '').trim()
       
-      // Procurar documento (CNPJ, NF)
-      let documento = ''
+      // Procurar documento (CNPJ)
+      let cpfCnpj = ''
       const matchCnpj = linha.match(regexCNPJ)
       if (matchCnpj) {
-          documento = matchCnpj[1]
+          cpfCnpj = matchCnpj[1]
           resto = resto.replace(matchCnpj[0], '').trim()
       } else {
           // Procurar na linha seguinte se for um CNPJ isolado
@@ -45,30 +45,35 @@ export function parseDDAFromOCR(texto: string) {
               const linhaSeguinte = linhas[i+1]
               const matchCnpjSeguinte = linhaSeguinte.match(regexCNPJ)
               if (matchCnpjSeguinte) {
-                  documento = matchCnpjSeguinte[1]
-              }
-          }
-          if (!documento) {
-              const matchNumDoc = resto.match(/\b(NF\s*\d+|\d{3,})\b/)
-              if (matchNumDoc) {
-                  documento = matchNumDoc[1]
-                  resto = resto.replace(matchNumDoc[0], '').trim()
+                  cpfCnpj = matchCnpjSeguinte[1]
               }
           }
       }
+
+      // Procurar NF ou numero de doc
+      let documento = ''
+      const matchNumDoc = resto.match(/\b(NF\s*\d+|\d{3,})\b/)
+      if (matchNumDoc) {
+          documento = matchNumDoc[1]
+          resto = resto.replace(matchNumDoc[0], '').trim()
+      }
       
-      let beneficiario = resto.replace(/Pagar hoje|Pagar no vencimento/gi, '').trim()
-      // Limpar lixo
-      beneficiario = beneficiario.replace(/^(O|0|X)\s*/, '')
+      let beneficiarioLixo = resto.replace(/Pagar hoje|Pagar no vencimento/gi, '').trim()
+      beneficiarioLixo = beneficiarioLixo.replace(/\b(\d{2}\/\d{2}\/\d{4})\b/g, '').trim() // limpa datas perdidas
+      beneficiarioLixo = beneficiarioLixo.replace(/^(O|0|X)\s*/, '').trim()
       
-      if (!beneficiario && beneficiarioAtual) {
-          beneficiario = beneficiarioAtual
+      let beneficiarioFinal = beneficiarioAtual || beneficiarioLixo
+      // Se houver um beneficiarioAtual que capturamos antes (ex: GOMMA PNEUS LTDA), damos prioridade.
+      
+      let docFinal = documento
+      if (cpfCnpj) {
+          docFinal = docFinal ? `${docFinal} - CNPJ: ${cpfCnpj}` : `CNPJ: ${cpfCnpj}`
       }
       
       if (valor > 0) {
           resultados.push({
-              beneficiario: beneficiario || 'Não identificado',
-              documento: documento || 'S/N',
+              beneficiario: beneficiarioFinal || 'Não identificado',
+              documento: docFinal || 'S/N',
               valor,
               data_vencimento
           })
