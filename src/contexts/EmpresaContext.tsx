@@ -93,16 +93,9 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       )
       .subscribe()
 
-    // Polling de fallback (a cada 60 segundos) para caso o Realtime não esteja ativado
-    // Isso garante que se o cliente autorizar o link, a tela destrava sozinha.
-    const intervalId = setInterval(() => {
-      carregarEmpresas(false)
-    }, 60000)
-
     return () => {
       subscription.unsubscribe()
       supabase.removeChannel(channel)
-      clearInterval(intervalId)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   ArrowLeft, Bell, FileText, UserPlus, LogOut, Trash2, Upload, Search,
   Calendar, Check, AlertCircle, RefreshCw, Send, Download, ChevronDown, 
-  ArrowRightLeft, Sparkles, Plus, Users
+  ArrowRightLeft, Sparkles, Plus, Users, Edit2, X
 } from 'lucide-react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import toast from 'react-hot-toast'
@@ -32,6 +32,10 @@ export default function GestaoPagamentos() {
   const [menuImportarAberto, setMenuImportarAberto] = useState(false)
   const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false)
   const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false)
+  
+  // Modal de edição rápida (Categoria/Descrição)
+  const [modalEdicaoAberto, setModalEdicaoAberto] = useState(false)
+  const [itemEditando, setItemEditando] = useState<any>(null)
 
   // Novos estados para modais de detalhes e seleção
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
@@ -63,7 +67,7 @@ export default function GestaoPagamentos() {
       .eq('data_vencimento', dataAtual)
 
     const unificados = [
-      ...(ddas || []).filter(d => d.status === 'aberto' || d.data_vencimento === dataAtual).map(d => ({ ...d, origem: 'DDA' })),
+      ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
       ...(agendamentos || []).map(f => ({ ...f, origem: f.tipo === 'Transferência' ? 'Transferência' : (f.tipo?.includes('Folha') ? 'Folha' : 'Agendamento') }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     
@@ -277,6 +281,52 @@ export default function GestaoPagamentos() {
     setSelecionados(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
+  const toggleStatus = async (item: any) => {
+    const novoStatus = item.status === 'agendado' ? 'aberto' : 'agendado'
+    const tabela = item.origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
+    
+    // Atualização otimista
+    setPagamentos(prev => prev.map(p => p.id === item.id ? { ...p, status: novoStatus } : p))
+    
+    try {
+       await supabase.from(tabela).update({ status: novoStatus }).eq('id', item.id)
+    } catch (e) {
+       toast.error('Erro ao atualizar status')
+       carregarPagamentos() // reverte
+    }
+  }
+
+  const handleExcluirIndividual = async (id: string, origem: string) => {
+    if (!confirm('Deseja excluir este lançamento?')) return
+    const tabela = origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
+    try {
+      await supabase.from(tabela).delete().eq('id', id)
+      toast.success('Excluído!')
+      carregarPagamentos()
+    } catch(e) {
+      toast.error('Erro ao excluir')
+    }
+  }
+
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!itemEditando) return
+    const tabela = itemEditando.origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
+    
+    try {
+      await supabase.from(tabela).update({
+         categoria: itemEditando.categoria,
+         descricao: itemEditando.descricao
+      }).eq('id', itemEditando.id)
+      
+      toast.success('Atualizado com sucesso!')
+      setModalEdicaoAberto(false)
+      carregarPagamentos()
+    } catch(err) {
+      toast.error('Erro ao atualizar')
+    }
+  }
+
   return (
     <>
       {/* Top Navbar */}
@@ -437,26 +487,27 @@ export default function GestaoPagamentos() {
                       className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer"
                     />
                   </th>
-                  <th className="px-6 py-4">Tipo</th>
-                  <th className="px-6 py-4">Beneficiário</th>
-                  <th className="px-6 py-4">Categoria</th>
-                  <th className="px-6 py-4">Situação</th>
-                  <th className="px-6 py-4">Data Pg.</th>
-                  <th className="px-6 py-4">Valor</th>
-                  <th className="px-6 py-4 text-center">Ações</th>
+                  <th className="px-6 py-4">TIPO</th>
+                  <th className="px-6 py-4">BENEFICIÁRIO</th>
+                  <th className="px-6 py-4">CATEGORIA</th>
+                  <th className="px-6 py-4">DESCRIÇÃO</th>
+                  <th className="px-6 py-4">SITUAÇÃO</th>
+                  <th className="px-6 py-4">DATA PG.</th>
+                  <th className="px-6 py-4">VALOR</th>
+                  <th className="px-6 py-4 text-center">AÇÕES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700/50">
                 {carregando ? (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                    <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
                       <RefreshCw className="animate-spin mx-auto mb-3" size={24} />
                       Carregando...
                     </td>
                   </tr>
                 ) : pagamentos.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
+                    <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
                       Nenhum lançamento ativo para esta loja.
                     </td>
                   </tr>
@@ -471,16 +522,17 @@ export default function GestaoPagamentos() {
                         </td>
                         <td className="px-6 py-4 font-bold text-white text-sm">Lançamentos DDA</td>
                         <td className="px-6 py-4 text-sm text-dark-300">Diversos</td>
+                        <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosDda.length} itens importados</td>
                         <td className="px-6 py-4">
-                           <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Agendado</span>
+                           <span className="text-[10px] font-bold px-3 py-1 rounded bg-dark-700/50 text-dark-300 border border-dark-600 uppercase tracking-wider">—</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                        <td className="px-6 py-4 font-black text-blue-400 text-sm">
+                        <td className="px-6 py-4 font-black text-rose-400 text-sm">
                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                         </td>
                         <td className="px-6 py-4 text-center">
-                           <button onClick={() => setModalDetalhesDda(true)} className="bg-dark-700 hover:bg-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
-                              <Search size={16} />
+                           <button onClick={() => setModalDetalhesDda(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
+                              <Search size={16} className="text-dark-300" />
                            </button>
                         </td>
                       </tr>
@@ -488,23 +540,24 @@ export default function GestaoPagamentos() {
                     
                     {/* Linha Agrupada Folha */}
                     {pagamentosFolha.length > 0 && (
-                      <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-emerald-500">
+                      <tr className="bg-dark-800/10 hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4">
                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                         </td>
                         <td className="px-6 py-4 font-bold text-white text-sm">Folha de Pagamento</td>
                         <td className="px-6 py-4 text-sm text-dark-300">Recursos Humanos</td>
+                        <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosFolha.length} colaboradores</td>
                         <td className="px-6 py-4">
-                           <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Agendado</span>
+                           <span className="text-[10px] font-bold px-3 py-1 rounded bg-dark-700/50 text-dark-300 border border-dark-600 uppercase tracking-wider">—</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                        <td className="px-6 py-4 font-black text-emerald-400 text-sm">
+                        <td className="px-6 py-4 font-black text-rose-400 text-sm">
                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                         </td>
                         <td className="px-6 py-4 text-center">
-                           <button onClick={() => setModalDetalhesFolha(true)} className="bg-dark-700 hover:bg-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
-                              <Search size={16} />
+                           <button onClick={() => setModalDetalhesFolha(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
+                              <Search size={16} className="text-dark-300" />
                            </button>
                         </td>
                       </tr>
@@ -512,53 +565,61 @@ export default function GestaoPagamentos() {
 
                     {/* Linhas Individuais (Transferências, outros) */}
                     {pagamentosIndividuais.map((pag, idx) => (
-                      <tr key={pag.id || idx} className={`${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'hover:bg-dark-800/30'} transition-colors`}>
+                      <tr key={pag.id || idx} className={`${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'bg-[#11141c] hover:bg-dark-800/30'} transition-colors border-b border-dark-700/50`}>
                         <td className="px-6 py-4">
                            <input 
                               type="checkbox" 
                               checked={selecionados.includes(pag.id)}
                               onChange={() => toggleSelect(pag.id)}
-                              className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                              className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer w-4 h-4"
                            />
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
-                            pag.origem === 'Transferência' ? 'text-emerald-400 bg-emerald-500/10' :
-                            'text-amber-400 bg-amber-500/10'
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${
+                            pag.origem === 'Transferência' ? 'text-emerald-400' : 'text-dark-300'
                           }`}>
-                            {pag.origem}
+                            {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-semibold text-white text-sm">
+                        <td className="px-6 py-4 font-bold text-white text-sm">
                           {pag.fornecedor || '—'}
                         </td>
+                        <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
+                          {pag.categoria || '—'}
+                        </td>
                         <td className="px-6 py-4 text-sm text-dark-300 max-w-[150px] truncate">
-                          {pag.categoria || pag.descricao || '—'}
+                          {pag.descricao || '—'}
                         </td>
                         <td className="px-6 py-4">
-                          {pag.status === 'enviado_ca' ? (
-                            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Sincronizado</span>
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Pendente</span>
-                          )}
+                          <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
+                            pag.status === 'agendado' 
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
+                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
+                          }`}>
+                            {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
+                          </button>
                         </td>
-                        <td className="px-6 py-4 text-sm text-dark-300 font-semibold">
+                        <td className="px-6 py-4 text-sm text-dark-300">
                           {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
                         </td>
-                        <td className="px-6 py-4 font-bold text-white text-sm">
+                        <td className="px-6 py-4 font-bold text-rose-400 text-sm">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          {pag.status !== 'enviado_ca' && (
+                          <div className="flex items-center justify-center gap-2">
                              <button 
-                               onClick={() => handleExportarContaAzul(pag)}
-                               disabled={exportando}
-                               title="Enviar para Conta Azul"
+                               onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); }}
                                className="text-dark-400 hover:text-white transition-colors p-1"
                              >
-                               <Send size={16}/>
+                               <Edit2 size={16}/>
                              </button>
-                          )}
+                             <button 
+                               onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
+                               className="text-dark-400 hover:text-rose-400 transition-colors p-1"
+                             >
+                               <Trash2 size={16}/>
+                             </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -654,6 +715,8 @@ export default function GestaoPagamentos() {
         lancamentos={pagamentosDda}
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
+        onToggleStatus={toggleStatus}
       />
 
       <ModalDetalhesLancamentos 
@@ -663,7 +726,53 @@ export default function GestaoPagamentos() {
         lancamentos={pagamentosFolha}
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
+        onToggleStatus={toggleStatus}
       />
+
+      {/* Modal de Edição (Categoria e Descrição) */}
+      {modalEdicaoAberto && itemEditando && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <form onSubmit={handleSalvarEdicao} className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-dark-700 flex items-center justify-between">
+               <h3 className="text-white font-bold text-lg">Editar Lançamento</h3>
+               <button type="button" onClick={() => setModalEdicaoAberto(false)} className="text-dark-400 hover:text-white">
+                  <X size={20} />
+               </button>
+            </div>
+            <div className="p-6 space-y-4">
+               <div>
+                  <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria</label>
+                  <input 
+                    type="text" 
+                    value={itemEditando.categoria || ''} 
+                    onChange={e => setItemEditando({...itemEditando, categoria: e.target.value})}
+                    className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500"
+                    placeholder="Ex: Diversos"
+                  />
+               </div>
+               <div>
+                  <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
+                  <input 
+                    type="text" 
+                    value={itemEditando.descricao || (itemEditando.origem === 'DDA' ? `Doc: ${itemEditando.documento}` : '')} 
+                    onChange={e => setItemEditando({...itemEditando, descricao: e.target.value})}
+                    className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500"
+                    placeholder="Detalhes..."
+                  />
+               </div>
+            </div>
+            <div className="p-5 border-t border-dark-700 flex justify-end gap-3 bg-[#0b0e14]">
+               <button type="button" onClick={() => setModalEdicaoAberto(false)} className="px-4 py-2 text-dark-300 hover:text-white font-semibold text-sm">
+                 Cancelar
+               </button>
+               <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20">
+                 Salvar
+               </button>
+            </div>
+          </form>
+        </div>
+      )}
     </>
   )
 }

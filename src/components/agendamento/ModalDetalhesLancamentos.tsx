@@ -12,6 +12,7 @@ interface ModalDetalhesProps {
   onAgendar: (ids: string[]) => void
   onEditarItem?: (item: any) => void
   onTransferirItem?: (item: any) => void
+  onToggleStatus?: (item: any) => void
 }
 
 export default function ModalDetalhesLancamentos({
@@ -22,7 +23,8 @@ export default function ModalDetalhesLancamentos({
   onDelete,
   onAgendar,
   onEditarItem,
-  onTransferirItem
+  onTransferirItem,
+  onToggleStatus
 }: ModalDetalhesProps) {
   const [selecionados, setSelecionados] = useState<string[]>([])
 
@@ -103,6 +105,8 @@ export default function ModalDetalhesLancamentos({
                     />
                   </th>
                   <th className="px-6 py-4">Beneficiário</th>
+                  <th className="px-6 py-4">Categoria</th>
+                  <th className="px-6 py-4">Descrição</th>
                   <th className="px-6 py-4">Doc.</th>
                   <th className="px-6 py-4">Vencimento</th>
                   <th className="px-6 py-4">Situação</th>
@@ -135,6 +139,12 @@ export default function ModalDetalhesLancamentos({
                            <td className="px-6 py-4 font-semibold text-white text-sm">
                               {nome}
                            </td>
+                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
+                              {pag.categoria || '—'}
+                           </td>
+                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[150px] truncate">
+                              {pag.descricao || '—'}
+                           </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {doc}
                            </td>
@@ -142,9 +152,16 @@ export default function ModalDetalhesLancamentos({
                               {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
                            </td>
                            <td className="px-6 py-4">
-                              <span className={`text-xs font-semibold px-2 py-1 rounded ${pag.status === 'enviado_ca' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-500/10 text-emerald-400'} uppercase tracking-wider`}>
-                                 {pag.status === 'enviado_ca' ? 'Enviado' : 'Agendado'}
-                              </span>
+                              <button 
+                                 onClick={() => onToggleStatus && onToggleStatus(pag)} 
+                                 className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
+                                  pag.status === 'agendado' 
+                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
+                                  : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
+                                 }`}
+                              >
+                                 {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
+                              </button>
                            </td>
                            <td className="px-6 py-4 font-bold text-white text-sm">
                               {formatCurrency(pag.valor)}
