@@ -77,6 +77,9 @@ export function parseDDAFromOCR(texto: string) {
               valor,
               data_vencimento
           })
+          
+          // Limpar beneficiarioAtual para não vazar para o próximo lançamento!
+          beneficiarioAtual = ''
       }
     } else {
         // Possível linha apenas com nome do beneficiário
@@ -115,7 +118,8 @@ export function parseFolhaFromOCR(texto: string) {
     // Ex: ANDRE LUIS DOS SANTOS GOMES 788,84
     const regexLinhaDinheiro = /(?:R\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})$/
 
-    for (const linha of linhas) {
+    for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i]
         let fornecedor = ''
         let cpf = ''
         let valorStr = ''
@@ -151,6 +155,17 @@ export function parseFolhaFromOCR(texto: string) {
             resto = resto.replace(/^\d+\s+/, '').trim()
             
             fornecedor = resto
+            
+            // Se o nome sumiu (ex: estava na linha anterior e essa linha só tinha CPF e valor)
+            if (!fornecedor && i > 0) {
+                let linhaAnterior = linhas[i-1].trim()
+                linhaAnterior = linhaAnterior.replace(/^(Empregados|Empregado|Empre)\s*/i, '').trim()
+                linhaAnterior = linhaAnterior.replace(/^\d+\s+/, '').trim()
+                // Evita pegar cabeçalhos
+                if (!linhaAnterior.toLowerCase().includes('cpf') && !linhaAnterior.toLowerCase().includes('código')) {
+                    fornecedor = linhaAnterior
+                }
+            }
         }
         
         if (fornecedor && valorStr) {
