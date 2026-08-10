@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
 
     const apiFormData = new FormData();
     apiFormData.append('file', file);
-    apiFormData.append('apikey', process.env.OCR_SPACE_API_KEY);
     apiFormData.append('language', 'por');
     apiFormData.append('isTable', 'true');
     apiFormData.append('OCREngine', '2'); // Melhor reconhecimento
@@ -28,6 +27,9 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
+      headers: {
+        'apikey': process.env.OCR_SPACE_API_KEY
+      },
       body: apiFormData
     });
 
