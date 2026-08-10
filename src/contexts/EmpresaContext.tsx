@@ -32,15 +32,19 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
         .order('nome')
 
       if (error) throw error
-
-      setEmpresas(data || [])
+      
+      const newEmpresas = data || []
+      // Evita re-renders se nada mudou (importante pro polling)
+      if (JSON.stringify(newEmpresas) !== JSON.stringify(empresas)) {
+        setEmpresas(newEmpresas)
+      }
 
       // Recuperar empresa ativa do localStorage e mantê-la atualizada com os dados novos
       const savedId = localStorage.getItem('empresa_ativa_id')
       
       if (savedId) {
         const saved = data?.find((e) => e.id === savedId)
-        if (saved) {
+        if (saved && JSON.stringify(saved) !== JSON.stringify(empresaAtiva)) {
           setEmpresaAtivaState(saved)
         }
       } else if (!empresaAtiva && data && data.length > 0) {
@@ -48,7 +52,9 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       } else if (empresaAtiva) {
         // Se já tinha empresa ativa mas não no localStorage, atualiza os dados dela
         const atualizada = data?.find((e) => e.id === empresaAtiva.id)
-        if (atualizada) setEmpresaAtivaState(atualizada)
+        if (atualizada && JSON.stringify(atualizada) !== JSON.stringify(empresaAtiva)) {
+          setEmpresaAtivaState(atualizada)
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar empresas:', err)
@@ -87,11 +93,11 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       )
       .subscribe()
 
-    // Polling de fallback (a cada 10 segundos) para caso o Realtime não esteja ativado
+    // Polling de fallback (a cada 60 segundos) para caso o Realtime não esteja ativado
     // Isso garante que se o cliente autorizar o link, a tela destrava sozinha.
     const intervalId = setInterval(() => {
       carregarEmpresas(false)
-    }, 10000)
+    }, 60000)
 
     return () => {
       subscription.unsubscribe()

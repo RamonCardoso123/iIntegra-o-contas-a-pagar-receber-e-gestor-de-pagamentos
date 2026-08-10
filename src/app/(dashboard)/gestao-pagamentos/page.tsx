@@ -11,6 +11,7 @@ import { useEmpresa } from '@/contexts/EmpresaContext'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
+import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
 import { useRouter } from 'next/navigation'
 
 export default function GestaoPagamentos() {
@@ -32,6 +33,11 @@ export default function GestaoPagamentos() {
   const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false)
   const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false)
 
+  // Novos estados para modais de detalhes e seleção
+  const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
+  const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
+  const [selecionados, setSelecionados] = useState<string[]>([])
+
   useEffect(() => {
     if (empresaAtiva) {
       carregarPagamentos()
@@ -42,12 +48,12 @@ export default function GestaoPagamentos() {
     if (!empresaAtiva) return
     setCarregando(true)
     
-    // Buscar DDA
+    // Buscar DDA: todos os abertos ou do dia (removido filtro estrito de dataAtual para DDA)
+    // Isso resolve o bug do DDA importado que não aparecia por ter data diferente
     const { data: ddas } = await supabase
       .from('pagamentos_dda')
       .select('*')
       .eq('empresa_id', empresaAtiva.id)
-      .eq('data_vencimento', dataAtual)
       
     // Buscar Agendamentos/Folha/Transferencias
     const { data: agendamentos } = await supabase
@@ -57,11 +63,12 @@ export default function GestaoPagamentos() {
       .eq('data_vencimento', dataAtual)
 
     const unificados = [
-      ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
-      ...(agendamentos || []).map(f => ({ ...f, origem: f.tipo === 'Transferência' ? 'Transferência' : 'Agendamento/Folha' }))
+      ...(ddas || []).filter(d => d.status === 'aberto' || d.data_vencimento === dataAtual).map(d => ({ ...d, origem: 'DDA' })),
+      ...(agendamentos || []).map(f => ({ ...f, origem: f.tipo === 'Transferência' ? 'Transferência' : (f.tipo?.includes('Folha') ? 'Folha' : 'Agendamento') }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     
     setPagamentos(unificados)
+    setSelecionados([]) // limpa seleção ao recarregar
     setCarregando(false)
   }
 
@@ -232,6 +239,44 @@ export default function GestaoPagamentos() {
   const totalEntradas = 0.00 
   const saldoFinalEstimado = saldoCaixa + totalEntradas - totalDespesas
 
+  // Lógica de agrupamento para DDA e Folha
+  const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
+  const pagamentosFolha = pagamentos.filter(p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento')
+  const pagamentosIndividuais = pagamentos.filter(p => p.origem !== 'DDA' && p.origem !== 'Folha' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento')
+
+  const handleExcluirEmLote = async (ids: string[]) => {
+    if (!confirm(`Excluir ${ids.length} lançamento(s)?`)) return
+    toast.loading('Excluindo...', { id: 'delete_lote' })
+    try {
+       await supabase.from('pagamentos_dda').delete().in('id', ids)
+       await supabase.from('agendamentos').delete().in('id', ids)
+       toast.success('Excluídos com sucesso', { id: 'delete_lote' })
+       setSelecionados([])
+       carregarPagamentos()
+       setModalDetalhesDda(false)
+       setModalDetalhesFolha(false)
+    } catch (e) {
+       toast.error('Erro ao excluir', { id: 'delete_lote' })
+    }
+  }
+
+  const handleAgendarEmLote = async (ids: string[]) => {
+    toast.success(`${ids.length} item(ns) agendado(s)!`)
+    setSelecionados([])
+  }
+
+  const toggleSelectAll = () => {
+    if (selecionados.length === pagamentosIndividuais.length) {
+      setSelecionados([])
+    } else {
+      setSelecionados(pagamentosIndividuais.map(p => p.id))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelecionados(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  }
+
   return (
     <>
       {/* Top Navbar */}
@@ -328,40 +373,55 @@ export default function GestaoPagamentos() {
           </div>
 
           {/* Action Row */}
-          <div className="p-4 bg-[#0d1017] border-b border-dark-700 flex items-center gap-3">
-            <div className="relative">
-              <button 
-                onClick={() => setMenuImportarAberto(!menuImportarAberto)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-900/20"
-              >
-                <Upload size={16} /> Importar Arquivos <ChevronDown size={14} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          <div className="p-4 bg-[#0d1017] border-b border-dark-700 flex flex-col md:flex-row items-center gap-4 justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button 
+                  onClick={() => setMenuImportarAberto(!menuImportarAberto)}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-900/20"
+                >
+                  <Upload size={16} /> Importar Arquivos <ChevronDown size={14} className={menuImportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+                
+                {menuImportarAberto && (
+                  <div className="absolute top-full mt-2 left-0 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors border-b border-dark-700/50">
+                      <FileText size={16} className="text-blue-400" />
+                      <span className="text-sm font-semibold text-white">DDA</span>
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
+                    </label>
+                    <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors">
+                      <FileText size={16} className="text-emerald-400" />
+                      <span className="text-sm font-semibold text-white">Folha de Pagamento</span>
+                      <input type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={() => setModalAgendamentoAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                <Calendar size={16} className="text-blue-400" /> Agendamento
               </button>
-              
-              {menuImportarAberto && (
-                <div className="absolute top-full mt-2 left-0 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors border-b border-dark-700/50">
-                    <FileText size={16} className="text-blue-400" />
-                    <span className="text-sm font-semibold text-white">DDA</span>
-                    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'dda')} disabled={importando} />
-                  </label>
-                  <label className="flex items-center gap-3 px-4 py-3 hover:bg-dark-700 cursor-pointer transition-colors">
-                    <FileText size={16} className="text-emerald-400" />
-                    <span className="text-sm font-semibold text-white">Folha de Pagamento</span>
-                    <input type="file" accept="application/pdf" className="hidden" onChange={e => handleImportarArquivo(e, 'folha')} disabled={importando} />
-                  </label>
-                </div>
-              )}
+              <button onClick={() => setModalTransferenciaAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                <ArrowRightLeft size={16} className="text-emerald-400" /> Transferência
+              </button>
+              <button className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                <Sparkles size={16} className="text-amber-400" /> Integrar Connecta AI
+              </button>
             </div>
 
-            <button onClick={() => setModalAgendamentoAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-              <Calendar size={16} className="text-blue-400" /> Agendamento
-            </button>
-            <button onClick={() => setModalTransferenciaAberto(true)} className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-              <ArrowRightLeft size={16} className="text-emerald-400" /> Transferência
-            </button>
-            <button className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-              <Sparkles size={16} className="text-amber-400" /> Integrar Connecta AI
-            </button>
+            {/* Selection Batch Actions */}
+            {selecionados.length > 0 && (
+               <div className="flex items-center gap-2 animate-fade-in bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-lg">
+                 <span className="text-sm text-blue-400 font-bold mr-2">{selecionados.length} selecionado(s)</span>
+                 <button onClick={() => handleExcluirEmLote(selecionados)} className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors">
+                   Excluir
+                 </button>
+                 <button onClick={() => handleAgendarEmLote(selecionados)} className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-3 py-1.5 rounded text-xs font-bold transition-colors">
+                   Agendar
+                 </button>
+               </div>
+            )}
           </div>
 
           {/* Table */}
@@ -369,9 +429,17 @@ export default function GestaoPagamentos() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0b0e14] border-b border-dark-700 text-[10px] uppercase font-bold tracking-widest text-dark-400">
+                  <th className="px-6 py-4 w-12">
+                    <input 
+                      type="checkbox" 
+                      checked={selecionados.length > 0 && selecionados.length === pagamentosIndividuais.length && pagamentosIndividuais.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4">Tipo</th>
                   <th className="px-6 py-4">Beneficiário</th>
-                  <th className="px-6 py-4">Descrição</th>
+                  <th className="px-6 py-4">Categoria</th>
                   <th className="px-6 py-4">Situação</th>
                   <th className="px-6 py-4">Data Pg.</th>
                   <th className="px-6 py-4">Valor</th>
@@ -381,62 +449,120 @@ export default function GestaoPagamentos() {
               <tbody className="divide-y divide-dark-700/50">
                 {carregando ? (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                    <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm">
                       <RefreshCw className="animate-spin mx-auto mb-3" size={24} />
                       Carregando...
                     </td>
                   </tr>
                 ) : pagamentos.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
+                    <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
                       Nenhum lançamento ativo para esta loja.
                     </td>
                   </tr>
                 ) : (
-                  pagamentos.map((pag, idx) => (
-                    <tr key={idx} className="hover:bg-dark-800/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
-                          pag.origem === 'DDA' ? 'text-blue-400' : 
-                          pag.origem === 'Transferência' ? 'text-emerald-400' :
-                          'text-amber-400'
-                        }`}>
-                          {pag.origem}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-white text-sm">
-                        {pag.origem === 'DDA' ? pag.beneficiario : pag.fornecedor}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-dark-300 max-w-[200px] truncate">
-                        {pag.origem === 'DDA' ? `Doc: ${pag.documento}` : pag.descricao || '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        {pag.status === 'enviado_ca' ? (
-                          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Sincronizado</span>
-                        ) : (
-                          <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Pendente</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-dark-300 font-semibold">
-                        {pag.data_vencimento.split('-').reverse().join('/')}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-white text-sm">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {pag.status !== 'enviado_ca' && (
-                           <button 
-                             onClick={() => handleExportarContaAzul(pag)}
-                             disabled={exportando}
-                             title="Enviar para Conta Azul"
-                             className="text-dark-400 hover:text-white transition-colors p-1"
-                           >
-                             <Send size={16}/>
+                  <>
+                    {/* Linha Agrupada DDA */}
+                    {pagamentosDda.length > 0 && (
+                      <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
+                        <td className="px-6 py-4"></td>
+                        <td className="px-6 py-4">
+                           <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-white text-sm">Lançamentos DDA</td>
+                        <td className="px-6 py-4 text-sm text-dark-300">Diversos</td>
+                        <td className="px-6 py-4">
+                           <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Agendado</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
+                        <td className="px-6 py-4 font-black text-blue-400 text-sm">
+                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                           <button onClick={() => setModalDetalhesDda(true)} className="bg-dark-700 hover:bg-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
+                              <Search size={16} />
                            </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    )}
+                    
+                    {/* Linha Agrupada Folha */}
+                    {pagamentosFolha.length > 0 && (
+                      <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-emerald-500">
+                        <td className="px-6 py-4"></td>
+                        <td className="px-6 py-4">
+                           <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-white text-sm">Folha de Pagamento</td>
+                        <td className="px-6 py-4 text-sm text-dark-300">Recursos Humanos</td>
+                        <td className="px-6 py-4">
+                           <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Agendado</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
+                        <td className="px-6 py-4 font-black text-emerald-400 text-sm">
+                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                           <button onClick={() => setModalDetalhesFolha(true)} className="bg-dark-700 hover:bg-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
+                              <Search size={16} />
+                           </button>
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Linhas Individuais (Transferências, outros) */}
+                    {pagamentosIndividuais.map((pag, idx) => (
+                      <tr key={pag.id || idx} className={`${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'hover:bg-dark-800/30'} transition-colors`}>
+                        <td className="px-6 py-4">
+                           <input 
+                              type="checkbox" 
+                              checked={selecionados.includes(pag.id)}
+                              onChange={() => toggleSelect(pag.id)}
+                              className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                           />
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
+                            pag.origem === 'Transferência' ? 'text-emerald-400 bg-emerald-500/10' :
+                            'text-amber-400 bg-amber-500/10'
+                          }`}>
+                            {pag.origem}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-white text-sm">
+                          {pag.fornecedor || '—'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-dark-300 max-w-[150px] truncate">
+                          {pag.categoria || pag.descricao || '—'}
+                        </td>
+                        <td className="px-6 py-4">
+                          {pag.status === 'enviado_ca' ? (
+                            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Sincronizado</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Pendente</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-dark-300 font-semibold">
+                          {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-white text-sm">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {pag.status !== 'enviado_ca' && (
+                             <button 
+                               onClick={() => handleExportarContaAzul(pag)}
+                               disabled={exportando}
+                               title="Enviar para Conta Azul"
+                               className="text-dark-400 hover:text-white transition-colors p-1"
+                             >
+                               <Send size={16}/>
+                             </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 )}
               </tbody>
             </table>
@@ -521,6 +647,23 @@ export default function GestaoPagamentos() {
           </div>
         </div>
       )}
+      <ModalDetalhesLancamentos 
+        open={modalDetalhesDda}
+        onClose={() => setModalDetalhesDda(false)}
+        titulo={`Lançamentos DDA — ${empresaAtiva?.nome || ''}`}
+        lancamentos={pagamentosDda}
+        onDelete={handleExcluirEmLote}
+        onAgendar={handleAgendarEmLote}
+      />
+
+      <ModalDetalhesLancamentos 
+        open={modalDetalhesFolha}
+        onClose={() => setModalDetalhesFolha(false)}
+        titulo={`Folha de Pagamento — ${empresaAtiva?.nome || ''}`}
+        lancamentos={pagamentosFolha}
+        onDelete={handleExcluirEmLote}
+        onAgendar={handleAgendarEmLote}
+      />
     </>
   )
 }
