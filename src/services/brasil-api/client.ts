@@ -51,7 +51,11 @@ export async function buscarCnpj(cnpj: string): Promise<BrasilApiCnpjResponse | 
   if (cnpjLimpo.length !== 14) return null
 
   try {
-    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`)
+    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`, {
+      headers: {
+        'User-Agent': 'NovoContasAPagar/1.0'
+      }
+    })
     if (!res.ok) return null
     return await res.json()
   } catch (error) {
