@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   ArrowLeft, Bell, FileText, UserPlus, LogOut, Trash2, Upload, Search,
   Calendar, Check, AlertCircle, RefreshCw, Send, Download, ChevronDown, 
-  ArrowRightLeft, Sparkles, Plus, Users, Edit2, X
+  ArrowRightLeft, Sparkles, Plus, Users, Edit2, X, Paperclip
 } from 'lucide-react'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import toast from 'react-hot-toast'
@@ -60,12 +60,15 @@ export default function GestaoPagamentos() {
       .select('*')
       .eq('empresa_id', empresaAtiva.id)
       
-    // Buscar Agendamentos/Folha/Transferencias
+    // Buscar Agendamentos/Folha/Transferencias: todos os abertos (removido
+    // filtro estrito de dataAtual, mesmo fix já aplicado ao DDA acima).
+    // Isso resolve o bug do agendamento manual que era salvo com sucesso
+    // mas não aparecia no painel por ter data de vencimento diferente da
+    // data filtrada no momento do cadastro.
     const { data: agendamentos } = await supabase
       .from('agendamentos')
       .select('*')
       .eq('empresa_id', empresaAtiva.id)
-      .eq('data_vencimento', dataAtual)
 
     const unificados = [
       ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
@@ -641,13 +644,24 @@ export default function GestaoPagamentos() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                             <button 
+                             {pag.anexo_url && (
+                               <a
+                                 href={pag.anexo_url}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="text-emerald-400 hover:text-emerald-300 transition-colors p-1"
+                                 title="Ver anexo"
+                               >
+                                 <Paperclip size={16}/>
+                               </a>
+                             )}
+                             <button
                                onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); }}
                                className="text-dark-400 hover:text-white transition-colors p-1"
                              >
                                <Edit2 size={16}/>
                              </button>
-                             <button 
+                             <button
                                onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
                                className="text-dark-400 hover:text-rose-400 transition-colors p-1"
                              >

@@ -29,6 +29,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [salvando, setSalvando] = useState(false)
   const [lendoAnexo, setLendoAnexo] = useState(false)
   const [nomeAnexo, setNomeAnexo] = useState('')
+  const [arquivoAnexo, setArquivoAnexo] = useState<File | null>(null)
   const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceiraOpcao[]>([])
   const [editandoFornecedor, setEditandoFornecedor] = useState(false)
   const [editandoCategoria, setEditandoCategoria] = useState(false)
@@ -56,6 +57,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const handleArquivoAnexo = async (file: File | undefined | null) => {
     if (!file) return
     setNomeAnexo(file.name)
+    setArquivoAnexo(file)
     setLendoAnexo(true)
     toast.loading('Lendo documento com IA...', { id: 'ler_anexo' })
 
@@ -99,23 +101,47 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
   const handleSalvar = async () => {
     if (!empresaAtiva) return
-    if (!fornecedor || !dataVencimento || !valor) {
-      toast.error('Preencha os campos obrigatórios (Fornecedor, Vencimento e Valor).')
+    if (!fornecedor || !dataVencimento || !dataCompetencia || !valor) {
+      toast.error('Preencha os campos obrigatórios (Fornecedor, Vencimento, Competência e Valor).')
       return
     }
 
     setSalvando(true)
     try {
+      // Se tiver anexo, sobe pro Supabase Storage antes de salvar o
+      // agendamento, pra já guardar o link de visualização junto.
+      let anexoUrl = ''
+      if (arquivoAnexo) {
+        try {
+          const extensao = arquivoAnexo.name.split('.').pop() || 'bin'
+          const caminho = `${empresaAtiva.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensao}`
+          const { error: erroUpload } = await supabase.storage
+            .from('anexos')
+            .upload(caminho, arquivoAnexo, { upsert: false, contentType: arquivoAnexo.type || undefined })
+
+          if (erroUpload) {
+            toast.error('Não foi possível salvar o anexo (' + erroUpload.message + '), mas o agendamento será salvo mesmo assim.')
+          } else {
+            const { data: urlData } = supabase.storage.from('anexos').getPublicUrl(caminho)
+            anexoUrl = urlData.publicUrl
+          }
+        } catch {
+          toast.error('Não foi possível salvar o anexo, mas o agendamento será salvo mesmo assim.')
+        }
+      }
+
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: empresaAtiva.id,
         fornecedor,
         descricao,
         data_vencimento: dataVencimento,
+        competencia: dataCompetencia,
         valor: parseFloat(valor.replace(',', '.')),
         categoria,
         conta_pagamento: contaPagamento,
         tipo,
-        chave_pix: chavePix
+        chave_pix: chavePix,
+        anexo_url: anexoUrl || null
       })
 
       if (error) throw error
@@ -227,7 +253,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               <input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Data Competência</label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Data Competência <span className="text-rose-400">*</span></label>
               <input type="date" value={dataCompetencia} onChange={e => setDataCompetencia(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
             <div className="space-y-1">
