@@ -17,6 +17,7 @@ export function parseDDAFromOCR(texto: string) {
   const regexCNPJSemFormato = /\b(\d{14})\b/
 
   let beneficiarioAtual = ''
+  let cnpjAtual = ''
   
   for (let i = 0; i < linhas.length; i++) {
     const linha = linhas[i]
@@ -49,6 +50,9 @@ export function parseDDAFromOCR(texto: string) {
           const d = matchCnpjSF[1]
           cpfCnpj = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
           resto = resto.replace(matchCnpjSF[0], '').trim()
+      } else if (cnpjAtual) {
+          // Usa o CNPJ capturado na linha anterior
+          cpfCnpj = cnpjAtual
       } else {
           // Procurar na linha seguinte se for um CNPJ isolado
           if (i + 1 < linhas.length) {
@@ -76,8 +80,8 @@ export function parseDDAFromOCR(texto: string) {
       beneficiarioLixo = beneficiarioLixo.replace(/\b(\d{2}\/\d{2}\/\d{4})\b/g, '').trim() // limpa datas perdidas
       beneficiarioLixo = beneficiarioLixo.replace(/^(O|0|X)\s*/, '').trim()
       
+      // Se houver um beneficiarioAtual que capturamos antes, damos prioridade.
       let beneficiarioFinal = beneficiarioAtual || beneficiarioLixo
-      // Se houver um beneficiarioAtual que capturamos antes (ex: GOMMA PNEUS LTDA), damos prioridade.
       
       let docFinal = documento
       if (cpfCnpj) {
@@ -93,15 +97,32 @@ export function parseDDAFromOCR(texto: string) {
               data_vencimento
           })
           
-          // Limpar beneficiarioAtual para não vazar para o próximo lançamento!
+          // Limpar estados atuais para não vazar para o próximo lançamento!
           beneficiarioAtual = ''
+          cnpjAtual = ''
       }
     } else {
-        // Possível linha apenas com nome do beneficiário
+        // Possível linha com nome do beneficiário (e talvez CNPJ)
         if (linha.length > 5 && !linha.includes('R$') && !linha.match(regexData)) {
-            // Não queremos que o CNPJ seja confundido com o nome do beneficiário
-            if (!linha.match(regexCNPJ) && !linha.match(regexCNPJSemFormato)) {
-                beneficiarioAtual = linha
+            let linhaLimpa = linha
+            
+            // Verifica se tem CNPJ nessa linha "solta"
+            const matchCnpj = linha.match(regexCNPJ)
+            const matchCnpjSF = linha.match(regexCNPJSemFormato)
+            
+            if (matchCnpj) {
+                cnpjAtual = matchCnpj[1]
+                linhaLimpa = linhaLimpa.replace(matchCnpj[0], '').trim()
+            } else if (matchCnpjSF) {
+                const d = matchCnpjSF[1]
+                cnpjAtual = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
+                linhaLimpa = linhaLimpa.replace(matchCnpjSF[0], '').trim()
+            }
+            
+            // O que sobrar é o nome do beneficiário
+            linhaLimpa = linhaLimpa.replace(/^(O|0|X)\s*/, '').trim()
+            if (linhaLimpa.length > 2) {
+                beneficiarioAtual = linhaLimpa
             }
         }
     }
