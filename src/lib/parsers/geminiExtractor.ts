@@ -18,11 +18,11 @@ export interface ItemFolha {
 }
 
 // Pode ser trocado via variável de ambiente sem precisar mexer no código.
-// Usamos o "apelido" oficial da Google (gemini-flash-latest) em vez de fixar
-// uma versão específica (ex: gemini-2.0-flash, gemini-2.5-flash), porque a
-// Google vem desativando modelos antigos com frequência. Esse apelido sempre
-// aponta pro modelo Flash mais atual disponível, evitando quebrar de novo.
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-flash-latest'
+// gemini-3.5-flash-lite: versão rápida e gratuita, ideal pra extração de
+// dados estruturados (não precisa do "raciocínio profundo" dos modelos
+// maiores, então responde bem mais rápido). Se um dia parar de existir,
+// troque aqui ou defina GEMINI_MODEL na Vercel sem precisar mexer no código.
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
 
 async function fileParaBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   const buffer = Buffer.from(await file.arrayBuffer())
