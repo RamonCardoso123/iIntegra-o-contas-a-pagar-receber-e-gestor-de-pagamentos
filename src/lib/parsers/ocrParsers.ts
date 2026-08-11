@@ -2,7 +2,7 @@ import { parseCurrency, parseDate } from '../utils'
 
 export function parseDDAFromOCR(texto: string) {
   const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean)
-  const resultados = []
+  const resultados: any[] = []
   
   // Padrão comum em DDA: (Nome) (Doc) (Data) (Valor)
   // Como OCR.space com isTable=true tenta manter colunas na mesma linha,
@@ -11,7 +11,10 @@ export function parseDDAFromOCR(texto: string) {
   const regexValor = /(?:R\$)?\s*(\d{1,3}(?:\.\d{3})*,\d{2})/
   const regexData = /(\d{2}\/\d{2}\/\d{4})/
   const regexDoc = /(\d+)/
+  // CNPJ formatado: 99.999.999/9999-99
   const regexCNPJ = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/
+  // CNPJ sem formatação: 14 dígitos seguidos (ex: 52011070000111)
+  const regexCNPJSemFormato = /\b(\d{14})\b/
 
   let beneficiarioAtual = ''
   
@@ -33,19 +36,30 @@ export function parseDDAFromOCR(texto: string) {
       // Remover valor e data da linha para sobrar beneficiário e doc
       let resto = linha.replace(matchValor[0], '').replace(matchData[0], '').trim()
       
-      // Procurar documento (CNPJ)
+      // Procurar documento (CNPJ formatado ou sem formato)
       let cpfCnpj = ''
       const matchCnpj = linha.match(regexCNPJ)
+      const matchCnpjSF = linha.match(regexCNPJSemFormato)
+      
       if (matchCnpj) {
           cpfCnpj = matchCnpj[1]
           resto = resto.replace(matchCnpj[0], '').trim()
+      } else if (matchCnpjSF) {
+          // Formatar o CNPJ sem formato para o padrão XX.XXX.XXX/XXXX-XX
+          const d = matchCnpjSF[1]
+          cpfCnpj = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
+          resto = resto.replace(matchCnpjSF[0], '').trim()
       } else {
           // Procurar na linha seguinte se for um CNPJ isolado
           if (i + 1 < linhas.length) {
               const linhaSeguinte = linhas[i+1]
               const matchCnpjSeguinte = linhaSeguinte.match(regexCNPJ)
+              const matchCnpjSFSeguinte = linhaSeguinte.match(regexCNPJSemFormato)
               if (matchCnpjSeguinte) {
                   cpfCnpj = matchCnpjSeguinte[1]
+              } else if (matchCnpjSFSeguinte) {
+                  const d = matchCnpjSFSeguinte[1]
+                  cpfCnpj = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
               }
           }
       }
@@ -74,6 +88,7 @@ export function parseDDAFromOCR(texto: string) {
           resultados.push({
               beneficiario: beneficiarioFinal || 'Não identificado',
               documento: docFinal || 'S/N',
+              cpf_cnpj: cpfCnpj || '',
               valor,
               data_vencimento
           })
@@ -85,7 +100,7 @@ export function parseDDAFromOCR(texto: string) {
         // Possível linha apenas com nome do beneficiário
         if (linha.length > 5 && !linha.includes('R$') && !linha.match(regexData)) {
             // Não queremos que o CNPJ seja confundido com o nome do beneficiário
-            if (!linha.match(regexCNPJ)) {
+            if (!linha.match(regexCNPJ) && !linha.match(regexCNPJSemFormato)) {
                 beneficiarioAtual = linha
             }
         }
@@ -94,6 +109,7 @@ export function parseDDAFromOCR(texto: string) {
   
   return resultados
 }
+
 
 export function parseFolhaFromOCR(texto: string) {
     const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean)
