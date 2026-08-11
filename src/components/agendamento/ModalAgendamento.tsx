@@ -1,10 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { X, Calendar as CalendarIcon, Upload, CheckCircle2, Loader2, Sparkles, FileCheck2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, Calendar as CalendarIcon, Upload, CheckCircle2, Loader2, Sparkles, FileCheck2, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Empresa } from '@/types'
+import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
+import SelectorCategoria from '@/components/upload/SelectorCategoria'
+import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 
 interface ModalAgendamentoProps {
   open: boolean
@@ -26,8 +29,24 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [salvando, setSalvando] = useState(false)
   const [lendoAnexo, setLendoAnexo] = useState(false)
   const [nomeAnexo, setNomeAnexo] = useState('')
+  const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceiraOpcao[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (!open || !empresaAtiva?.id) return
+    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresaAtiva.id}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.contas && Array.isArray(data.contas)) {
+          setContasFinanceiras(data.contas)
+        }
+      })
+      .catch(() => {
+        // Sem conexão com o Conta Azul (ou token expirado) — o campo
+        // continua funcionando, só sem sugestões automáticas.
+      })
+  }, [open, empresaAtiva?.id])
 
   if (!open) return null
 
@@ -119,12 +138,62 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Anexo compacto no topo — anexa e a IA preenche o resto do formulário */}
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={e => handleArquivoAnexo(e.target.files?.[0])}
+            />
+            <div
+              onClick={() => !lendoAnexo && fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault()
+                if (!lendoAnexo) handleArquivoAnexo(e.dataTransfer.files?.[0])
+              }}
+              className={`flex items-center gap-3 border border-dashed rounded-xl px-4 py-2.5 transition-all ${
+                lendoAnexo
+                  ? 'border-brand-500 bg-brand-500/5 text-brand-300 cursor-wait'
+                  : 'border-dark-700 text-dark-400 hover:bg-dark-800 hover:border-dark-500 cursor-pointer'
+              }`}
+            >
+              {lendoAnexo ? (
+                <>
+                  <Loader2 size={16} className="animate-spin shrink-0" />
+                  <span className="text-sm font-medium">Lendo documento com IA...</span>
+                </>
+              ) : nomeAnexo ? (
+                <>
+                  <FileCheck2 size={16} className="text-emerald-400 shrink-0" />
+                  <span className="text-sm text-dark-300 truncate">{nomeAnexo}</span>
+                  <span className="text-xs text-dark-500 ml-auto shrink-0">Clique pra trocar</span>
+                </>
+              ) : (
+                <>
+                  <Paperclip size={16} className="shrink-0" />
+                  <span className="text-sm">Anexar boleto/imposto/taxa</span>
+                  <span className="text-xs text-dark-500 ml-auto flex items-center gap-1 shrink-0">
+                    <Sparkles size={12} className="text-brand-400" /> a IA preenche os campos
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Fornecedor / Colaborador <span className="text-rose-400">*</span></label>
-              <input type="text" value={fornecedor} onChange={e => setFornecedor(e.target.value)} placeholder="Nome do fornecedor" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <SelectorFornecedor
+                key={`forn-${fornecedor}`}
+                valorInicial={fornecedor}
+                onSelect={nome => setFornecedor(nome)}
+                onCancel={() => {}}
+              />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-2">
               <label className="text-xs font-semibold text-dark-400 uppercase">Descrição / Observações</label>
               <input type="text" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Detalhes do pagamento" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
@@ -148,14 +217,15 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Categoria</label>
-              <input type="text" value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ex: Salários" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <SelectorCategoria
+                key={`cat-${categoria}`}
+                valorInicial={categoria}
+                onSelect={nome => setCategoria(nome)}
+                onCancel={() => {}}
+              />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Conta de Pagamento</label>
-              <input type="text" value={contaPagamento} onChange={e => setContaPagamento(e.target.value)} placeholder="Ex: Banco Itaú" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Tipo</label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Forma de Pagamento</label>
               <select value={tipo} onChange={e => setTipo(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all">
                 <option value="PIX">PIX</option>
                 <option value="Boleto">Boleto</option>
@@ -165,6 +235,16 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
                 <option value="Outros">Outros</option>
               </select>
             </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-dark-400 uppercase">Conta de Pagamento</label>
+              <SelectorContaFinanceira
+                key={`conta-${contaPagamento}`}
+                valorInicial={contaPagamento}
+                contas={contasFinanceiras}
+                onSelect={nome => setContaPagamento(nome)}
+                onCancel={() => {}}
+              />
+            </div>
           </div>
 
           {tipo === 'PIX' && (
@@ -173,54 +253,6 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               <input type="text" value={chavePix} onChange={e => setChavePix(e.target.value)} placeholder="Chave do beneficiário" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           )}
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-400 uppercase flex items-center gap-1.5">
-              Anexo (Opcional)
-              <span className="normal-case text-dark-500 font-normal flex items-center gap-1">
-                <Sparkles size={12} className="text-brand-400" /> a IA preenche os campos acima pra você
-              </span>
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={e => handleArquivoAnexo(e.target.files?.[0])}
-            />
-            <div
-              onClick={() => !lendoAnexo && fileInputRef.current?.click()}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                e.preventDefault()
-                if (!lendoAnexo) handleArquivoAnexo(e.dataTransfer.files?.[0])
-              }}
-              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all ${
-                lendoAnexo
-                  ? 'border-brand-500 bg-brand-500/5 text-brand-300 cursor-wait'
-                  : 'border-dark-700 text-dark-500 hover:bg-dark-800 hover:text-dark-300 hover:border-dark-500 cursor-pointer'
-              }`}
-            >
-              {lendoAnexo ? (
-                <>
-                  <Loader2 size={24} className="mb-2 animate-spin" />
-                  <p className="text-sm font-medium">Lendo documento com IA...</p>
-                </>
-              ) : nomeAnexo ? (
-                <>
-                  <FileCheck2 size={24} className="mb-2 text-emerald-400" />
-                  <p className="text-sm font-medium text-dark-300">{nomeAnexo}</p>
-                  <p className="text-xs text-dark-500 mt-1">Clique pra trocar o arquivo</p>
-                </>
-              ) : (
-                <>
-                  <Upload size={24} className="mb-2" />
-                  <p className="text-sm font-medium">Arraste um boleto/imposto ou clique para fazer upload</p>
-                </>
-              )}
-            </div>
-          </div>
-
         </div>
 
         {/* Footer */}
