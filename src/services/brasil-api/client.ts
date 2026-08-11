@@ -50,18 +50,66 @@ export async function buscarCnpj(cnpj: string): Promise<BrasilApiCnpjResponse | 
   const cnpjLimpo = cnpj.replace(/\D/g, '')
   if (cnpjLimpo.length !== 14) return null
 
+  // 1. Tenta Brasil API
   try {
     const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`, {
-      headers: {
-        'User-Agent': 'NovoContasAPagar/1.0'
-      }
+      headers: { 'User-Agent': 'NovoContasAPagar/1.0' }
     })
-    if (!res.ok) return null
-    return await res.json()
+    if (res.ok) {
+      return await res.json()
+    }
   } catch (error) {
-    console.warn(`Erro ao buscar CNPJ ${cnpjLimpo} na Brasil API:`, error)
-    return null
+    console.warn(`Erro na Brasil API para ${cnpjLimpo}:`, error)
   }
+
+  // 2. Fallback: CNPJ.ws
+  try {
+    const res2 = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`)
+    if (res2.ok) {
+      const data2 = await res2.json()
+      // Mapear para o formato esperado da Brasil API
+      return {
+        cnpj: data2.cnpj_raiz + data2.estabelecimento.cnpj_ordem + data2.estabelecimento.cnpj_digito_verificador,
+        nome_fantasia: data2.estabelecimento.nome_fantasia || '',
+        razao_social: data2.razao_social || '',
+        logradouro: data2.estabelecimento.logradouro,
+        numero: data2.estabelecimento.numero,
+        bairro: data2.estabelecimento.bairro,
+        municipio: data2.estabelecimento.cidade?.nome,
+        uf: data2.estabelecimento.estado?.sigla,
+        cep: data2.estabelecimento.cep,
+        complemento: data2.estabelecimento.complemento,
+      } as BrasilApiCnpjResponse
+    }
+  } catch (error) {
+    console.warn(`Erro na CNPJ.ws para ${cnpjLimpo}:`, error)
+  }
+
+  // 3. Fallback: ReceitaWS
+  try {
+    const res3 = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpjLimpo}`)
+    if (res3.ok) {
+      const data3 = await res3.json()
+      if (data3.status === 'OK') {
+        return {
+          cnpj: data3.cnpj.replace(/\D/g, ''),
+          nome_fantasia: data3.fantasia || '',
+          razao_social: data3.nome || '',
+          logradouro: data3.logradouro,
+          numero: data3.numero,
+          bairro: data3.bairro,
+          municipio: data3.municipio,
+          uf: data3.uf,
+          cep: data3.cep.replace(/\D/g, ''),
+          complemento: data3.complemento,
+        } as BrasilApiCnpjResponse
+      }
+    }
+  } catch (error) {
+    console.warn(`Erro na ReceitaWS para ${cnpjLimpo}:`, error)
+  }
+
+  return null
 }
 
 export async function buscarCep(cep: string): Promise<BrasilApiCepResponse | null> {
