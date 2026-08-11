@@ -227,7 +227,7 @@ Devolva um objeto JSON com exatamente estes campos:
 - "data_vencimento": data de vencimento no formato "AAAA-MM-DD"
 - "data_documento": a "data do documento" ou "data de emissão" impressa nele (diferente da data de vencimento), no formato "AAAA-MM-DD". Deixe "" se não encontrar
 - "valor": valor numérico total a pagar, usando PONTO como separador decimal, sem "R$" e sem separador de milhar (ex: 1384.48)
-- "categoria": uma sugestão curta de categoria. Use "Retenção - ISS Serviços Tomados" quando o documento for uma guia de ISS Retido/ISSQN Retido (ver regra especial abaixo). Para os demais casos, escolha a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
+- "categoria": uma sugestão curta de categoria. Use uma das categorias fixas das regras especiais abaixo quando o documento se encaixar nelas. Para os demais casos, escolha a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
 - "tipo": o meio de pagamento identificado — use exatamente um destes valores: "PIX", "Boleto", "TED", "Folha", "Imposto", "Outros"
 - "chave_pix": se o documento tiver uma chave PIX visível (copia e cola, e-mail, telefone, CPF/CNPJ ou chave aleatória), coloque aqui. Caso contrário, deixe ""
 
@@ -242,9 +242,42 @@ Se o documento for esse tipo de guia municipal, siga exatamente:
 - "descricao": "ISS Retido - competência MM/AAAA" (usando a competência identificada)
 - "tipo": "Imposto"
 
+REGRA ESPECIAL — Documento de Arrecadação de Receitas Federais / DARF, quando alguma linha da "Composição do Documento" tiver "CONTR PREV" na denominação (ex: "CONTR PREV DESCONTA SEGURADO-EMPREGADO/AVULSO", "CONTRIB PREVIDENCIÁRIA EMPRESA/EMPREGADOR") — é uma guia de INSS/GPS:
+- "fornecedor": "Receita Federal"
+- "categoria": sempre exatamente "INSS sobre Salários - GPS"
+- "documento": o "Número do Documento"
+- "data_vencimento": o campo "Data de Vencimento" / "Pagar este documento até"
+- "data_documento": o primeiro dia do mês/ano do "Período de Apuração" (ex: Junho/2026 vira "2026-06-01")
+- "valor": o "Valor Total do Documento"
+- "descricao": "INSS/GPS - competência MM/AAAA"
+- "tipo": "Imposto"
+
+REGRA ESPECIAL — "Documento de Arrecadação do Simples Nacional" (DAS):
+- "fornecedor": "Receita Federal"
+- "categoria": sempre exatamente "Simples Nacional - DAS"
+- "documento": o "Número do Documento"
+- "data_vencimento": o campo "Data de Vencimento" / "Pagar este documento até"
+- "data_documento": o primeiro dia do mês/ano do "Período de Apuração" (ex: Junho/2026 vira "2026-06-01")
+- "valor": o "Valor Total do Documento"
+- "descricao": "DAS - Simples Nacional - competência MM/AAAA"
+- "tipo": "Imposto"
+
+REGRA ESPECIAL — "GFD - Guia do FGTS Digital" (FGTS):
+- "fornecedor": "Caixa Econômica Federal"
+- "categoria": sempre exatamente "FGTS e Multa de FGTS"
+- "documento": o "Identificador"
+- "data_vencimento": o campo "Pagar este documento até"
+- "data_documento": o primeiro dia do mês/ano do campo "Competência" (ex: 06/2026 vira "2026-06-01")
+- "valor": o "Valor a recolher" / "Total da Guia"
+- "descricao": "FGTS - competência MM/AAAA"
+- "tipo": "Imposto"
+
 Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplos do formato exato:
 {"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","documento":"3224","data_vencimento":"2026-07-30","data_documento":"2026-07-10","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
 {"fornecedor":"Prefeitura de Belo Horizonte","descricao":"ISS Retido - competência 07/2026","documento":"0226231121098","data_vencimento":"2026-08-10","data_documento":"2026-07-01","valor":16.21,"categoria":"Retenção - ISS Serviços Tomados","tipo":"Imposto","chave_pix":""}
+{"fornecedor":"Receita Federal","descricao":"INSS/GPS - competência 06/2026","documento":"07.16.26190.4201400-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":990.89,"categoria":"INSS sobre Salários - GPS","tipo":"Imposto","chave_pix":""}
+{"fornecedor":"Receita Federal","descricao":"DAS - Simples Nacional - competência 06/2026","documento":"07.20.26182.8446529-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":9332.70,"categoria":"Simples Nacional - DAS","tipo":"Imposto","chave_pix":""}
+{"fornecedor":"Caixa Econômica Federal","descricao":"FGTS - competência 06/2026","documento":"0126070848549167-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":220.70,"categoria":"FGTS e Multa de FGTS","tipo":"Imposto","chave_pix":""}
 
 Se não conseguir identificar algum campo com confiança, preencha os que conseguir e deixe os demais em branco ("" ou 0) — não invente dados.`
 
