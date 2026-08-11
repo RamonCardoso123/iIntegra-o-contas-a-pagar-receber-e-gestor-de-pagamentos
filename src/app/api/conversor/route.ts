@@ -100,10 +100,10 @@ export async function POST(req: NextRequest) {
               try {
                 const resultado = await buscarCnpj(cnpj)
                 if (resultado) {
-                  // Prioriza nome fantasia, se não tiver usa razão social
-                  const nome = resultado.nome_fantasia && resultado.nome_fantasia.trim()
-                    ? resultado.nome_fantasia.trim()
-                    : resultado.razao_social?.trim() || ''
+                  // Prioriza razão social (que é o que vem no boleto/DDA), se não tiver usa nome fantasia
+                  const nome = resultado.razao_social && resultado.razao_social.trim()
+                    ? resultado.razao_social.trim()
+                    : resultado.nome_fantasia?.trim() || ''
                   
                   if (nome) {
                     cacheCnpj[cnpj] = nome
