@@ -1,9 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseDDAFromOCR, parseFolhaFromOCR } from '@/lib/parsers/ocrParsers';
 import { buscarCnpj } from '@/services/brasil-api/client';
+import { extrairDDAComGemini, extrairFolhaComGemini, ItemDDA } from '@/lib/parsers/geminiExtractor';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120; // Aumentado para comportar consultas de CNPJ na Brasil API
+
+// ========================================================
+// ENRIQUECER BENEFICIÁRIOS VIA CNPJ (Brasil API)
+// O OCR (e às vezes a própria IA) erra os nomes mas acerta os CNPJs.
+// Consultamos a Brasil API para cada CNPJ único e substituímos
+// o beneficiário pelo nome real da empresa.
+// Usado tanto pelo fluxo do Gemini quanto pelo fluxo antigo (OCR.space + regex).
+// ========================================================
+async function enriquecerBeneficiariosPorCnpj(dados: ItemDDA[]): Promise<ItemDDA[]> {
+  const regexCnpjDoc = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/
+
+  const cnpjsUnicos = new Set<string>()
+  for (const item of dados) {
+    const doc = item.documento || ''
+    const matchDoc = doc.match(regexCnpjDoc)
+    if (matchDoc) cnpjsUnicos.add(matchDoc[1])
+
+    if (item.cpf_cnpj) {
+      const matchCpfCnpj = item.cpf_cnpj.match(regexCnpjDoc)
+      if (matchCpfCnpj) cnpjsUnicos.add(matchCpfCnpj[1])
+    }
+  }
+
+  const cacheCnpj: Record<string, string> = {}
+
+  if (cnpjsUnicos.size > 0) {
+    console.log(`[DDA] Consultando ${cnpjsUnicos.size} CNPJ(s) na Brasil API...`)
+
+    const consultas = Array.from(cnpjsUnicos).map(async (cnpj) => {
+      try {
+        const resultado = await buscarCnpj(cnpj)
+        if (resultado) {
+          const nome = resultado.razao_social && resultado.razao_social.trim()
+            ? resultado.razao_social.trim()
+            : resultado.nome_fantasia?.trim() || ''
+
+          if (nome) {
+            cacheCnpj[cnpj] = nome
+            console.log(`[DDA] CNPJ ${cnpj} → ${nome}`)
+          }
+        }
+      } catch (err) {
+        console.warn(`[DDA] Falha ao consultar CNPJ ${cnpj}:`, err)
+      }
+    })
+
+    await Promise.all(consultas)
+  }
+
+  for (const item of dados) {
+    let cnpjEncontrado = ''
+
+    const doc = item.documento || ''
+    const matchDoc = doc.match(regexCnpjDoc)
+    if (matchDoc) cnpjEncontrado = matchDoc[1]
+
+    if (!cnpjEncontrado && item.cpf_cnpj) {
+      const matchCpf = item.cpf_cnpj.match(regexCnpjDoc)
+      if (matchCpf) cnpjEncontrado = matchCpf[1]
+    }
+
+    if (cnpjEncontrado && cacheCnpj[cnpjEncontrado]) {
+      item.beneficiario = cacheCnpj[cnpjEncontrado]
+    }
+  }
+
+  return dados
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,137 +84,108 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
     }
 
-    if (!process.env.OCR_SPACE_API_KEY) {
-      return NextResponse.json({ error: 'Chave da API OCR.space não configurada.' }, { status: 500 });
+    // ========================================================
+    // CAMINHO NOVO: extração via Gemini (IA), só entra em ação
+    // se a variável GEMINI_API_KEY estiver configurada. Se der
+    // qualquer erro, cai automaticamente no fluxo antigo abaixo
+    // (OCR.space + regex) — nada quebra se o Gemini falhar.
+    // ========================================================
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        if (tipo === 'dda') {
+          const dados = await extrairDDAComGemini(file)
+          const dadosEnriquecidos = await enriquecerBeneficiariosPorCnpj(dados)
+          return NextResponse.json({ dados: dadosEnriquecidos, fonte: 'gemini' });
+        } else {
+          const resultado = await extrairFolhaComGemini(file)
+          return NextResponse.json({
+            dados: resultado.dados,
+            tipoCalculo: resultado.tipoCalculo,
+            fonte: 'gemini',
+          });
+        }
+      } catch (geminiError) {
+        console.warn('[Gemini] Falha ao extrair com IA, usando fallback OCR.space:', geminiError)
+        // Segue para o fluxo antigo abaixo, sem interromper o usuário.
+      }
     }
 
-    const apiFormData = new FormData();
-    apiFormData.append('apikey', process.env.OCR_SPACE_API_KEY || '');
-    apiFormData.append('file', file);
-    apiFormData.append('language', 'por');
-    apiFormData.append('isTable', 'true');
-    apiFormData.append('OCREngine', '2'); // Melhor reconhecimento
-    apiFormData.append('scale', 'true'); // Upscale interno melhora precisão
-
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      headers: {
-        'apikey': process.env.OCR_SPACE_API_KEY
-      },
-      body: apiFormData
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erro na API OCR.space:', errorText);
-      return NextResponse.json({ 
-          error: 'Falha ao processar arquivo no OCR.space.', 
-          detalhes: errorText 
-      }, { status: response.status });
+    // ========================================================
+    // FLUXO ANTIGO: OCR.space + regex (padrão quando GEMINI_API_KEY
+    // não está configurada, ou fallback se o Gemini falhar acima)
+    // ========================================================
+    let parsedText = ''
+    
+    // Verifica a extensão do arquivo
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    
+    if (ext === 'pdf') {
+       // Se for PDF, usar nosso extrator nativo perfeito em vez do OCR falho
+       const { extrairTextoPDF } = await import('@/lib/parsers/pdfExtractor')
+       parsedText = await extrairTextoPDF(file)
+    } else {
+       // Para imagens, mantemos o fluxo do OCR.space
+       if (!process.env.OCR_SPACE_API_KEY) {
+         return NextResponse.json({ error: 'Chave da API OCR.space não configurada.' }, { status: 500 });
+       }
+   
+       const apiFormData = new FormData();
+       apiFormData.append('apikey', process.env.OCR_SPACE_API_KEY || '');
+       apiFormData.append('file', file);
+       apiFormData.append('language', 'por');
+       apiFormData.append('isTable', 'true');
+       apiFormData.append('OCREngine', '2');
+       apiFormData.append('scale', 'true');
+   
+       const response = await fetch('https://api.ocr.space/parse/image', {
+         method: 'POST',
+         headers: {
+           'apikey': process.env.OCR_SPACE_API_KEY
+         },
+         body: apiFormData
+       });
+   
+       if (!response.ok) {
+         const errorText = await response.text();
+         console.error('Erro na API OCR.space:', errorText);
+         return NextResponse.json({ 
+             error: 'Falha ao processar arquivo no OCR.space.', 
+             detalhes: errorText 
+         }, { status: response.status });
+       }
+   
+       const jsonResult = await response.json();
+       console.log('Resposta bruta OCR.space:', JSON.stringify(jsonResult));
+   
+       if (jsonResult.OCRExitCode !== 1 && jsonResult.OCRExitCode !== 2) {
+         return NextResponse.json({ 
+           error: jsonResult.ErrorMessage?.[0] || 'O OCR não conseguiu ler a imagem.' 
+         }, { status: 500 });
+       }
+   
+       parsedText = jsonResult.ParsedResults?.[0]?.ParsedText || '';
     }
-
-    const jsonResult = await response.json();
-    console.log('Resposta bruta OCR.space:', JSON.stringify(jsonResult));
-
-    if (jsonResult.OCRExitCode !== 1 && jsonResult.OCRExitCode !== 2) {
-      return NextResponse.json({ 
-        error: jsonResult.ErrorMessage?.[0] || 'O OCR não conseguiu ler a imagem.' 
-      }, { status: 500 });
-    }
-
-    const parsedText = jsonResult.ParsedResults?.[0]?.ParsedText || '';
 
     if (!parsedText.trim()) {
-       return NextResponse.json({ error: 'Nenhum texto foi encontrado na imagem.' }, { status: 400 });
+       return NextResponse.json({ error: 'Nenhum texto foi encontrado no arquivo.' }, { status: 400 });
     }
 
     try {
       if (tipo === 'dda') {
           const dados = parseDDAFromOCR(parsedText);
-          
-          // ========================================================
-          // ENRIQUECER BENEFICIÁRIOS VIA CNPJ (Brasil API)
-          // O OCR erra os nomes mas acerta os CNPJs.
-          // Consultamos a Brasil API para cada CNPJ único e 
-          // substituímos o beneficiário pelo nome real da empresa.
-          // ========================================================
-          
-          // 1. Coletar todos os CNPJs únicos (do campo documento e cpf_cnpj)
-          const regexCnpjDoc = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/
-          const cnpjsUnicos = new Set<string>()
-          
-          for (const item of dados) {
-            // Tenta extrair CNPJ do campo documento
-            const doc = item.documento || ''
-            const matchDoc = doc.match(regexCnpjDoc)
-            if (matchDoc) {
-              cnpjsUnicos.add(matchDoc[1])
-            }
-            // Também verifica o campo cpf_cnpj separado
-            if (item.cpf_cnpj) {
-              const matchCpfCnpj = item.cpf_cnpj.match(regexCnpjDoc)
-              if (matchCpfCnpj) {
-                cnpjsUnicos.add(matchCpfCnpj[1])
-              }
-            }
-          }
-          
-          // 2. Consultar Brasil API para cada CNPJ (em paralelo, com limite)
-          const cacheCnpj: Record<string, string> = {}
-          
-          if (cnpjsUnicos.size > 0) {
-            console.log(`[DDA] Consultando ${cnpjsUnicos.size} CNPJ(s) na Brasil API...`)
-            
-            const consultas = Array.from(cnpjsUnicos).map(async (cnpj) => {
-              try {
-                const resultado = await buscarCnpj(cnpj)
-                if (resultado) {
-                  // Prioriza razão social (que é o que vem no boleto/DDA), se não tiver usa nome fantasia
-                  const nome = resultado.razao_social && resultado.razao_social.trim()
-                    ? resultado.razao_social.trim()
-                    : resultado.nome_fantasia?.trim() || ''
-                  
-                  if (nome) {
-                    cacheCnpj[cnpj] = nome
-                    console.log(`[DDA] CNPJ ${cnpj} → ${nome}`)
-                  }
-                }
-              } catch (err) {
-                console.warn(`[DDA] Falha ao consultar CNPJ ${cnpj}:`, err)
-              }
-            })
-            
-            await Promise.all(consultas)
-          }
-          
-          // 3. Substituir o nome do beneficiário pelo nome real
-          for (const item of dados) {
-            let cnpjEncontrado = ''
-            
-            // Tenta do campo documento
-            const doc = item.documento || ''
-            const matchDoc = doc.match(regexCnpjDoc)
-            if (matchDoc) cnpjEncontrado = matchDoc[1]
-            
-            // Tenta do campo cpf_cnpj
-            if (!cnpjEncontrado && item.cpf_cnpj) {
-              const matchCpf = item.cpf_cnpj.match(regexCnpjDoc)
-              if (matchCpf) cnpjEncontrado = matchCpf[1]
-            }
-            
-            if (cnpjEncontrado && cacheCnpj[cnpjEncontrado]) {
-              item.beneficiario = cacheCnpj[cnpjEncontrado]
-            }
-          }
-          
-          return NextResponse.json({ dados });
+
+          // Mesma lógica de enriquecimento por CNPJ usada no caminho do Gemini
+          const dadosEnriquecidos = await enriquecerBeneficiariosPorCnpj(dados);
+
+          return NextResponse.json({ dados: dadosEnriquecidos, fonte: 'ocr-space' });
       } else {
           // 'folha'
           const resultado = parseFolhaFromOCR(parsedText);
           // Mandamos o tipo_calculo junto para o frontend calcular a competência
-          return NextResponse.json({ 
+          return NextResponse.json({
               dados: resultado.dados,
-              tipoCalculo: resultado.tipoCalculo
+              tipoCalculo: resultado.tipoCalculo,
+              fonte: 'ocr-space'
           });
       }
     } catch (parseError) {
