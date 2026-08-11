@@ -13,8 +13,8 @@ export function parseDDAFromOCR(texto: string) {
   const regexDoc = /(\d+)/
   // CNPJ formatado: 99.999.999/9999-99
   const regexCNPJ = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/
-  // CNPJ sem formatação: 14 dígitos seguidos (ex: 52011070000111)
-  const regexCNPJSemFormato = /\b(\d{14})\b/
+  // CNPJ sem formatação: 13 ou 14 dígitos (Itaú remove o zero à esquerda)
+  const regexCNPJSemFormato = /\b(\d{13,14})\b/
 
   let beneficiarioAtual = ''
   let cnpjAtual = ''
@@ -47,7 +47,8 @@ export function parseDDAFromOCR(texto: string) {
           resto = resto.replace(matchCnpj[0], '').trim()
       } else if (matchCnpjSF) {
           // Formatar o CNPJ sem formato para o padrão XX.XXX.XXX/XXXX-XX
-          const d = matchCnpjSF[1]
+          let d = matchCnpjSF[1]
+          if (d.length === 13) d = '0' + d // Preenche zero à esquerda
           cpfCnpj = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
           resto = resto.replace(matchCnpjSF[0], '').trim()
       } else if (cnpjAtual) {
@@ -62,7 +63,8 @@ export function parseDDAFromOCR(texto: string) {
               if (matchCnpjSeguinte) {
                   cpfCnpj = matchCnpjSeguinte[1]
               } else if (matchCnpjSFSeguinte) {
-                  const d = matchCnpjSFSeguinte[1]
+                  let d = matchCnpjSFSeguinte[1]
+                  if (d.length === 13) d = '0' + d
                   cpfCnpj = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
               }
           }
@@ -114,7 +116,8 @@ export function parseDDAFromOCR(texto: string) {
                 cnpjAtual = matchCnpj[1]
                 linhaLimpa = linhaLimpa.replace(matchCnpj[0], '').trim()
             } else if (matchCnpjSF) {
-                const d = matchCnpjSF[1]
+                let d = matchCnpjSF[1]
+                if (d.length === 13) d = '0' + d
                 cnpjAtual = `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`
                 linhaLimpa = linhaLimpa.replace(matchCnpjSF[0], '').trim()
             }
