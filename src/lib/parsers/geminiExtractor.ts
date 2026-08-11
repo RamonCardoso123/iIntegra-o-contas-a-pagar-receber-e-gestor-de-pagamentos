@@ -18,7 +18,8 @@ export interface ItemFolha {
 }
 
 // Pode ser trocado via variável de ambiente sem precisar mexer no código
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+// (gemini-2.0-flash foi descontinuado pelo Google em 2026; usando o Flash atual)
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
 async function fileParaBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   const buffer = Buffer.from(await file.arrayBuffer())
