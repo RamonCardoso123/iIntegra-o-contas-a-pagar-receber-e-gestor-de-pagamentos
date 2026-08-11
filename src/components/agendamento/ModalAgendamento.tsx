@@ -104,8 +104,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
   const handleSalvar = async () => {
     if (!empresaAtiva) return
-    if (!fornecedor || !dataVencimento || !dataCompetencia || !valor) {
-      toast.error('Preencha os campos obrigatórios (Fornecedor, Vencimento, Competência e Valor).')
+    if (!fornecedor || !dataVencimento || !dataCompetencia || !valor || !categoria) {
+      toast.error('Preencha os campos obrigatórios (Fornecedor, Vencimento, Competência, Valor e Categoria).')
       return
     }
 
@@ -267,7 +267,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Categoria</label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Categoria <span className="text-rose-400">*</span></label>
               {editandoCategoria ? (
                 <SelectorCategoria
                   valorInicial={categoria}

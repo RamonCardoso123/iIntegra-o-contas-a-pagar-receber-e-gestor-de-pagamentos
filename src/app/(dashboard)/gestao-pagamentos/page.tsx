@@ -362,19 +362,56 @@ export default function GestaoPagamentos() {
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemEditando) return
-    const tabela = itemEditando.origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
-    
+    const ehDda = itemEditando.origem === 'DDA'
+    const tabela = ehDda ? 'pagamentos_dda' : 'agendamentos'
+
+    if (!itemEditando.categoria) {
+      toast.error('Preencha a Categoria.')
+      return
+    }
+    const valorNumerico = parseFloat(String(itemEditando.valor).replace(',', '.'))
+    if (ehDda && (!itemEditando.beneficiario || !itemEditando.data_vencimento || !valorNumerico)) {
+      toast.error('Preencha Beneficiário, Vencimento e Valor.')
+      return
+    }
+    if (!ehDda && (!itemEditando.fornecedor || !itemEditando.data_vencimento || !valorNumerico)) {
+      toast.error('Preencha Fornecedor, Vencimento e Valor.')
+      return
+    }
+
     try {
-      await supabase.from(tabela).update({
-         categoria: itemEditando.categoria,
-         descricao: itemEditando.descricao
-      }).eq('id', itemEditando.id)
-      
+      const payload = ehDda
+        ? {
+            beneficiario: itemEditando.beneficiario,
+            documento: itemEditando.documento,
+            categoria: itemEditando.categoria,
+            descricao: itemEditando.descricao,
+            valor: valorNumerico,
+            data_vencimento: itemEditando.data_vencimento,
+            status: itemEditando.status,
+          }
+        : {
+            fornecedor: itemEditando.fornecedor,
+            tipo: itemEditando.tipo,
+            categoria: itemEditando.categoria,
+            descricao: itemEditando.descricao,
+            valor: valorNumerico,
+            data_vencimento: itemEditando.data_vencimento,
+            competencia: itemEditando.competencia,
+            conta_pagamento: itemEditando.conta_pagamento,
+            chave_pix: itemEditando.chave_pix,
+            cpf_cnpj: itemEditando.cpf_cnpj,
+            status: itemEditando.status,
+          }
+
+      const { error } = await supabase.from(tabela).update(payload).eq('id', itemEditando.id)
+      if (error) throw error
+
       toast.success('Atualizado com sucesso!')
       setModalEdicaoAberto(false)
       carregarPagamentos()
-    } catch(err) {
-      toast.error('Erro ao atualizar')
+    } catch(err: any) {
+      toast.error(err.message || 'Erro ao atualizar')
     }
   }
 
@@ -822,39 +859,130 @@ export default function GestaoPagamentos() {
         onToggleStatus={toggleStatus}
       />
 
-      {/* Modal de Edição (Categoria e Descrição) */}
+      {/* Modal de Edição — libera todos os campos do lançamento (DDA ou Agendamento/Folha) */}
       {modalEdicaoAberto && itemEditando && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <form onSubmit={handleSalvarEdicao} className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-dark-700 flex items-center justify-between">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <form onSubmit={handleSalvarEdicao} className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-dark-700 flex items-center justify-between shrink-0">
                <h3 className="text-white font-bold text-lg">Editar Lançamento</h3>
                <button type="button" onClick={() => setModalEdicaoAberto(false)} className="text-dark-400 hover:text-white">
                   <X size={20} />
                </button>
             </div>
-            <div className="p-6 space-y-4">
-               <div>
-                  <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria</label>
-                  <input 
-                    type="text" 
-                    value={itemEditando.categoria || ''} 
-                    onChange={e => setItemEditando({...itemEditando, categoria: e.target.value})}
-                    className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500"
-                    placeholder="Ex: Diversos"
-                  />
-               </div>
-               <div>
-                  <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
-                  <input 
-                    type="text" 
-                    value={itemEditando.descricao || (itemEditando.origem === 'DDA' ? `Doc: ${itemEditando.documento}` : '')} 
-                    onChange={e => setItemEditando({...itemEditando, descricao: e.target.value})}
-                    className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500"
-                    placeholder="Detalhes..."
-                  />
-               </div>
+            <div className="p-6 space-y-4 overflow-y-auto">
+               {itemEditando.origem === 'DDA' ? (
+                 <>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Beneficiário <span className="text-rose-400">*</span></label>
+                        <input type="text" value={itemEditando.beneficiario || ''} onChange={e => setItemEditando({...itemEditando, beneficiario: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nome do beneficiário" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Documento</label>
+                        <input type="text" value={itemEditando.documento || ''} onChange={e => setItemEditando({...itemEditando, documento: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nº do documento" />
+                     </div>
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
+                      <input type="text" value={itemEditando.categoria || ''} onChange={e => setItemEditando({...itemEditando, categoria: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Diversos" />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
+                      <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({...itemEditando, descricao: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
+                        <input type="number" step="0.01" value={itemEditando.valor ?? ''} onChange={e => setItemEditando({...itemEditando, valor: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
+                        <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({...itemEditando, data_vencimento: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Situação</label>
+                        <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({...itemEditando, status: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                          <option value="aberto">Em aberto</option>
+                          <option value="agendado">Agendado</option>
+                        </select>
+                     </div>
+                   </div>
+                 </>
+               ) : (
+                 <>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Fornecedor / Colaborador <span className="text-rose-400">*</span></label>
+                        <input type="text" value={itemEditando.fornecedor || ''} onChange={e => setItemEditando({...itemEditando, fornecedor: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nome do fornecedor" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Forma de Pagamento</label>
+                        <select value={itemEditando.tipo || 'Outros'} onChange={e => setItemEditando({...itemEditando, tipo: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                          <option value="PIX">PIX</option>
+                          <option value="Boleto">Boleto</option>
+                          <option value="TED">TED</option>
+                          <option value="Imposto">Imposto</option>
+                          <option value="Folha Mensal">Folha Mensal</option>
+                          <option value="Adiantamento">Adiantamento</option>
+                          <option value="Transferência">Transferência</option>
+                          <option value="Outros">Outros</option>
+                        </select>
+                     </div>
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
+                        <input type="text" value={itemEditando.categoria || ''} onChange={e => setItemEditando({...itemEditando, categoria: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Diversos" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
+                        <input type="text" value={itemEditando.conta_pagamento || ''} onChange={e => setItemEditando({...itemEditando, conta_pagamento: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Banco Itaú" />
+                     </div>
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
+                      <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({...itemEditando, descricao: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
+                        <input type="number" step="0.01" value={itemEditando.valor ?? ''} onChange={e => setItemEditando({...itemEditando, valor: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
+                        <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({...itemEditando, data_vencimento: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>
+                        <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({...itemEditando, competencia: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">CPF/CNPJ</label>
+                        <input type="text" value={itemEditando.cpf_cnpj || ''} onChange={e => setItemEditando({...itemEditando, cpf_cnpj: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Chave PIX</label>
+                        <input type="text" value={itemEditando.chave_pix || ''} onChange={e => setItemEditando({...itemEditando, chave_pix: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Situação</label>
+                        <select value={itemEditando.status || 'aberto'} onChange={e => setItemEditando({...itemEditando, status: e.target.value})} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                          <option value="aberto">Em aberto</option>
+                          <option value="agendado">Agendado</option>
+                        </select>
+                     </div>
+                   </div>
+                   {itemEditando.anexo_url && (
+                     <a href={itemEditando.anexo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-semibold">
+                       <Paperclip size={14} /> Ver anexo
+                     </a>
+                   )}
+                 </>
+               )}
             </div>
-            <div className="p-5 border-t border-dark-700 flex justify-end gap-3 bg-[#0b0e14]">
+            <div className="p-5 border-t border-dark-700 flex justify-end gap-3 bg-[#0b0e14] shrink-0">
                <button type="button" onClick={() => setModalEdicaoAberto(false)} className="px-4 py-2 text-dark-300 hover:text-white font-semibold text-sm">
                  Cancelar
                </button>
