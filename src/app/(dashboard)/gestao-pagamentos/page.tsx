@@ -385,7 +385,10 @@ export default function GestaoPagamentos() {
             <Users size={16} className="text-blue-400" /> Colaboradores
           </button>
 
-          <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
+          <button
+            onClick={() => router.push('/empresas?new=true')}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20"
+          >
             <Plus size={16} /> Nova Loja
           </button>
 

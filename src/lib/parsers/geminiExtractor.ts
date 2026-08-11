@@ -20,7 +20,9 @@ export interface ItemFolha {
 export interface ItemAvulso {
   fornecedor: string
   descricao: string
+  documento: string
   data_vencimento: string
+  data_documento: string
   valor: number
   categoria: string
   tipo: string
@@ -194,7 +196,9 @@ function normalizarItemAvulso(item: any): ItemAvulso {
   return {
     fornecedor: String(item?.fornecedor || '').trim(),
     descricao: String(item?.descricao || '').trim(),
+    documento: String(item?.documento || '').trim(),
     data_vencimento: String(item?.data_vencimento || '').trim(),
+    data_documento: String(item?.data_documento || '').trim(),
     valor: Number(item?.valor) || 0,
     categoria: String(item?.categoria || '').trim(),
     tipo: String(item?.tipo || 'Outros').trim(),
@@ -218,15 +222,17 @@ Analise o documento anexado (imagem ou PDF) e extraia os dados do pagamento prin
 
 Devolva um objeto JSON com exatamente estes campos:
 - "fornecedor": nome do beneficiário/fornecedor a quem o pagamento se destina (razão social, se disponível; para guias de imposto, use o nome do tributo/órgão, ex: "DAS - Simples Nacional")
-- "descricao": uma descrição curta do que é esse pagamento (ex: "Guia DAS competência 07/2026", "Boleto NF 1234")
+- "descricao": uma descrição curta do que é esse pagamento (ex: "Guia DAS competência 07/2026")
+- "documento": o número do documento/boleto/nota fiscal impresso nele (ex: "1043475533"). Deixe "" se não encontrar
 - "data_vencimento": data de vencimento no formato "AAAA-MM-DD"
+- "data_documento": a "data do documento" ou "data de emissão" impressa nele (diferente da data de vencimento), no formato "AAAA-MM-DD". Deixe "" se não encontrar
 - "valor": valor numérico total a pagar, usando PONTO como separador decimal, sem "R$" e sem separador de milhar (ex: 1384.48)
 - "categoria": uma sugestão curta de categoria, escolhendo a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
 - "tipo": o meio de pagamento identificado — use exatamente um destes valores: "PIX", "Boleto", "TED", "Folha", "Imposto", "Outros"
 - "chave_pix": se o documento tiver uma chave PIX visível (copia e cola, e-mail, telefone, CPF/CNPJ ou chave aleatória), coloque aqui. Caso contrário, deixe ""
 
 Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplo do formato exato:
-{"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","data_vencimento":"2026-07-30","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
+{"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","documento":"3224","data_vencimento":"2026-07-30","data_documento":"2026-07-10","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
 
 Se não conseguir identificar algum campo com confiança, preencha os que conseguir e deixe os demais em branco ("" ou 0) — não invente dados.`
 
