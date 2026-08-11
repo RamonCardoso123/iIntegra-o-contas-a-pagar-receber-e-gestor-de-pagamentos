@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
 import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
+import SelectorEmpresa from '@/components/layout/SelectorEmpresa'
 import { useRouter } from 'next/navigation'
 
 export default function GestaoPagamentos() {
@@ -364,6 +365,8 @@ export default function GestaoPagamentos() {
         </div>
 
         <div className="flex items-center gap-4">
+          <SelectorEmpresa />
+
           <div className="flex items-center gap-2 mr-4">
             <div className="text-right leading-tight">
               <p className="text-[10px] text-dark-400 font-bold uppercase tracking-wider">Operador</p>
