@@ -17,9 +17,12 @@ export interface ItemFolha {
   data_vencimento: string
 }
 
-// Pode ser trocado via variável de ambiente sem precisar mexer no código
-// (gemini-2.0-flash foi descontinuado pelo Google em 2026; usando o Flash atual)
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+// Pode ser trocado via variável de ambiente sem precisar mexer no código.
+// Usamos o "apelido" oficial da Google (gemini-flash-latest) em vez de fixar
+// uma versão específica (ex: gemini-2.0-flash, gemini-2.5-flash), porque a
+// Google vem desativando modelos antigos com frequência. Esse apelido sempre
+// aponta pro modelo Flash mais atual disponível, evitando quebrar de novo.
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-flash-latest'
 
 async function fileParaBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   const buffer = Buffer.from(await file.arrayBuffer())
