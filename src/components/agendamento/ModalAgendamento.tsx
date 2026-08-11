@@ -80,14 +80,17 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       if (dados.tipo) setTipo(dados.tipo)
       if (dados.chave_pix) setChavePix(dados.chave_pix)
 
-      // Pra boleto: a Descrição mostra o nº do documento e a Data de
-      // Competência usa a data do próprio documento (não o vencimento)
+      // Pra boleto: a Descrição mostra o nº do documento. Pros demais
+      // (impostos, guias, taxas etc.) usa a descrição que a IA já monta.
       if (dados.tipo === 'Boleto' && dados.documento) {
         setDescricao(`Boleto nº ${dados.documento}`)
       } else if (dados.descricao) {
         setDescricao(dados.descricao)
       }
-      if (dados.tipo === 'Boleto' && dados.data_documento) {
+      // A Data de Competência sempre usa a "data do documento" identificada
+      // pela IA (data de emissão do boleto, ou 1º dia do mês da competência
+      // no caso de guias de imposto/ISS Retido) — não o vencimento.
+      if (dados.data_documento) {
         setDataCompetencia(dados.data_documento)
       }
 

@@ -227,12 +227,24 @@ Devolva um objeto JSON com exatamente estes campos:
 - "data_vencimento": data de vencimento no formato "AAAA-MM-DD"
 - "data_documento": a "data do documento" ou "data de emissão" impressa nele (diferente da data de vencimento), no formato "AAAA-MM-DD". Deixe "" se não encontrar
 - "valor": valor numérico total a pagar, usando PONTO como separador decimal, sem "R$" e sem separador de milhar (ex: 1384.48)
-- "categoria": uma sugestão curta de categoria, escolhendo a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
+- "categoria": uma sugestão curta de categoria. Use "Retenção - ISS Serviços Tomados" quando o documento for uma guia de ISS Retido/ISSQN Retido (ver regra especial abaixo). Para os demais casos, escolha a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
 - "tipo": o meio de pagamento identificado — use exatamente um destes valores: "PIX", "Boleto", "TED", "Folha", "Imposto", "Outros"
 - "chave_pix": se o documento tiver uma chave PIX visível (copia e cola, e-mail, telefone, CPF/CNPJ ou chave aleatória), coloque aqui. Caso contrário, deixe ""
 
-Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplo do formato exato:
+REGRA ESPECIAL — Guia de ISS Retido (DRAM / "ISSQN Retido" / "Documento de Recolhimento e Arrecadação Municipal"):
+Se o documento for esse tipo de guia municipal, siga exatamente:
+- "fornecedor": use o nome da PREFEITURA que emitiu a guia (aparece no cabeçalho/brasão do documento, ex: "Prefeitura de Belo Horizonte"). NÃO use o nome do contribuinte/empresa que está pagando (esse é o próprio cliente, não o fornecedor).
+- "categoria": sempre exatamente "Retenção - ISS Serviços Tomados"
+- "documento": o "Número da Guia"
+- "data_vencimento": o campo "Vencimento" (geralmente destacado em amarelo)
+- "data_documento": o primeiro dia do mês/ano do campo "COMPETÊNCIA" (também destacado), no formato "AAAA-MM-01" (ex: competência 07/2026 vira "2026-07-01")
+- "valor": o campo "Valor a Pagar" ou "TOTAL"
+- "descricao": "ISS Retido - competência MM/AAAA" (usando a competência identificada)
+- "tipo": "Imposto"
+
+Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplos do formato exato:
 {"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","documento":"3224","data_vencimento":"2026-07-30","data_documento":"2026-07-10","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
+{"fornecedor":"Prefeitura de Belo Horizonte","descricao":"ISS Retido - competência 07/2026","documento":"0226231121098","data_vencimento":"2026-08-10","data_documento":"2026-07-01","valor":16.21,"categoria":"Retenção - ISS Serviços Tomados","tipo":"Imposto","chave_pix":""}
 
 Se não conseguir identificar algum campo com confiança, preencha os que conseguir e deixe os demais em branco ("" ou 0) — não invente dados.`
 
