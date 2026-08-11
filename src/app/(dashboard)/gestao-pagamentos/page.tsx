@@ -19,8 +19,10 @@ export default function GestaoPagamentos() {
   const router = useRouter()
   const supabase = createClient()
   const { empresaAtiva, empresas } = useEmpresa()
-  const [dataAtual, setDataAtual] = useState(new Date().toISOString().split('T')[0])
-  
+  const hoje = new Date().toISOString().split('T')[0]
+  const [dataInicio, setDataInicio] = useState(hoje)
+  const [dataFim, setDataFim] = useState(hoje)
+
   const [pagamentos, setPagamentos] = useState<any[]>([])
   const [carregando, setCarregando] = useState(false)
   const [importando, setImportando] = useState(false)
@@ -47,28 +49,30 @@ export default function GestaoPagamentos() {
     if (empresaAtiva) {
       carregarPagamentos()
     }
-  }, [empresaAtiva, dataAtual])
+  }, [empresaAtiva, dataInicio, dataFim])
 
   async function carregarPagamentos() {
     if (!empresaAtiva) return
     setCarregando(true)
-    
-    // Buscar DDA: todos os abertos ou do dia (removido filtro estrito de dataAtual para DDA)
-    // Isso resolve o bug do DDA importado que não aparecia por ter data diferente
+
+    // Filtra por período (data de vencimento entre dataInicio e dataFim).
+    // Por padrão os dois campos vêm com a data de hoje, então o comportamento
+    // padrão é mostrar só o dia atual — mas dá pra ampliar o período pra
+    // achar um lançamento com data diferente (ex: DDA/agendamento importado
+    // com vencimento em outro dia).
     const { data: ddas } = await supabase
       .from('pagamentos_dda')
       .select('*')
       .eq('empresa_id', empresaAtiva.id)
-      
-    // Buscar Agendamentos/Folha/Transferencias: todos os abertos (removido
-    // filtro estrito de dataAtual, mesmo fix já aplicado ao DDA acima).
-    // Isso resolve o bug do agendamento manual que era salvo com sucesso
-    // mas não aparecia no painel por ter data de vencimento diferente da
-    // data filtrada no momento do cadastro.
+      .gte('data_vencimento', dataInicio)
+      .lte('data_vencimento', dataFim)
+
     const { data: agendamentos } = await supabase
       .from('agendamentos')
       .select('*')
       .eq('empresa_id', empresaAtiva.id)
+      .gte('data_vencimento', dataInicio)
+      .lte('data_vencimento', dataFim)
 
     const unificados = [
       ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
@@ -125,7 +129,7 @@ export default function GestaoPagamentos() {
             beneficiario: item.beneficiario,
             documento: item.documento,
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: item.data_vencimento || dataAtual
+            data_vencimento: item.data_vencimento || dataInicio
           })
         } else {
           // Lógica de Competência
@@ -151,7 +155,7 @@ export default function GestaoPagamentos() {
             tipo: item.tipo || data.tipoCalculo || 'Folha',
             categoria: (item.tipo || data.tipoCalculo) === 'Adiantamento' ? 'Adiantamento Salarial' : 'Salários',
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: vencimentoEspecifico || dataAtual,
+            data_vencimento: vencimentoEspecifico || dataInicio,
             descricao: item.descricao,
             cpf_cnpj: item.cpf_cnpj,
             competencia: competencia
@@ -173,12 +177,12 @@ export default function GestaoPagamentos() {
 
   async function handleLimparRegistrosDoDia() {
     if (!empresaAtiva) return
-    if (!confirm('Deseja excluir TODOS os registros de pagamentos desta data? Essa ação não pode ser desfeita.')) return
-    
+    if (!confirm('Deseja excluir TODOS os registros de pagamentos deste período filtrado? Essa ação não pode ser desfeita.')) return
+
     toast.loading('Limpando registros...', { id: 'delete' })
     try {
-      await supabase.from('pagamentos_dda').delete().eq('empresa_id', empresaAtiva.id).eq('data_vencimento', dataAtual)
-      await supabase.from('agendamentos').delete().eq('empresa_id', empresaAtiva.id).eq('data_vencimento', dataAtual)
+      await supabase.from('pagamentos_dda').delete().eq('empresa_id', empresaAtiva.id).gte('data_vencimento', dataInicio).lte('data_vencimento', dataFim)
+      await supabase.from('agendamentos').delete().eq('empresa_id', empresaAtiva.id).gte('data_vencimento', dataInicio).lte('data_vencimento', dataFim)
       
       toast.success('Registros excluídos!', { id: 'delete' })
       carregarPagamentos()
@@ -252,6 +256,27 @@ export default function GestaoPagamentos() {
   const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
   const pagamentosFolha = pagamentos.filter(p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento')
   const pagamentosIndividuais = pagamentos.filter(p => p.origem !== 'DDA' && p.origem !== 'Folha' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento')
+
+  // Calcula a situação de um grupo (DDA/Folha) a partir do status de cada
+  // item dentro dele (o mesmo status que é alterado lá dentro do modal de
+  // detalhes): todos agendados = AGENDADO, nenhum agendado = EM ABERTO,
+  // uma mistura dos dois = PARCIAL.
+  function situacaoDoGrupo(itens: any[]) {
+    if (itens.length === 0) {
+      return { label: '—', classe: 'bg-dark-700/50 text-dark-300 border-dark-600' }
+    }
+    const agendados = itens.filter(i => i.status === 'agendado').length
+    if (agendados === 0) {
+      return { label: 'EM ABERTO', classe: 'bg-amber-500/10 text-amber-500 border-amber-500/20' }
+    }
+    if (agendados === itens.length) {
+      return { label: 'AGENDADO', classe: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' }
+    }
+    return { label: 'PARCIAL', classe: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }
+  }
+
+  const situacaoDda = situacaoDoGrupo(pagamentosDda)
+  const situacaoFolha = situacaoDoGrupo(pagamentosFolha)
 
   const handleExcluirEmLote = async (ids: string[]) => {
     if (!confirm(`Excluir ${ids.length} lançamento(s)?`)) return
@@ -416,7 +441,11 @@ export default function GestaoPagamentos() {
               </h2>
               <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
                 <Calendar size={12} className="text-amber-500" />
-                <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">Filtrado: {dataAtual.split('-').reverse().join('/')}</span>
+                <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">
+                  Filtrado: {dataInicio === dataFim
+                    ? dataInicio.split('-').reverse().join('/')
+                    : `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`}
+                </span>
               </div>
               <button onClick={handleLimparRegistrosDoDia} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
                 <Trash2 size={16} />
@@ -436,19 +465,32 @@ export default function GestaoPagamentos() {
           </div>
 
           {/* Filters Row */}
-          <div className="p-6 border-b border-dark-700 flex items-center gap-4">
+          <div className="p-6 border-b border-dark-700 flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-dark-400 uppercase tracking-wider flex items-center gap-2">
-                <Calendar size={14} /> Filtrar por data de pagamento
+                <Calendar size={14} /> Filtrar por período de pagamento
               </span>
-              <input 
+              <input
                 type="date"
-                value={dataAtual}
-                onChange={e => setDataAtual(e.target.value)}
+                value={dataInicio}
+                onChange={e => {
+                  const novaDataInicio = e.target.value
+                  setDataInicio(novaDataInicio)
+                  // Se a data final ficar antes da inicial, ajusta ela junto
+                  if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
+                }}
+                className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+              />
+              <span className="text-dark-500 text-sm">até</span>
+              <input
+                type="date"
+                value={dataFim}
+                min={dataInicio}
+                onChange={e => setDataFim(e.target.value)}
                 className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
               />
             </div>
-            <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
+            <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
               <Search size={14} /> Filtrar por Data
             </button>
           </div>
@@ -555,7 +597,7 @@ export default function GestaoPagamentos() {
                         <td className="px-6 py-4 text-sm text-dark-300">Diversos</td>
                         <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosDda.length} itens importados</td>
                         <td className="px-6 py-4">
-                           <span className="text-[10px] font-bold px-3 py-1 rounded bg-dark-700/50 text-dark-300 border border-dark-600 uppercase tracking-wider">—</span>
+                           <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
                         <td className="px-6 py-4 font-black text-rose-400 text-sm">
@@ -580,7 +622,7 @@ export default function GestaoPagamentos() {
                         <td className="px-6 py-4 text-sm text-dark-300">Salários / Adiantamentos</td>
                         <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosFolha.length} colaboradores</td>
                         <td className="px-6 py-4">
-                           <span className="text-[10px] font-bold px-3 py-1 rounded bg-dark-700/50 text-dark-300 border border-dark-600 uppercase tracking-wider">—</span>
+                           <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
                         <td className="px-6 py-4 font-black text-rose-400 text-sm">
