@@ -17,6 +17,16 @@ export interface ItemFolha {
   data_vencimento: string
 }
 
+export interface ItemAvulso {
+  fornecedor: string
+  descricao: string
+  data_vencimento: string
+  valor: number
+  categoria: string
+  tipo: string
+  chave_pix: string
+}
+
 // Pode ser trocado via variável de ambiente sem precisar mexer no código.
 // gemini-3.5-flash-lite: versão rápida e gratuita, ideal pra extração de
 // dados estruturados (não precisa do "raciocínio profundo" dos modelos
@@ -178,4 +188,58 @@ Se não conseguir identificar nenhum empregado, responda: []`
     .filter((item: ItemFolha) => item.fornecedor && item.valor > 0)
 
   return { tipoCalculo, dados: itens }
+}
+
+function normalizarItemAvulso(item: any): ItemAvulso {
+  return {
+    fornecedor: String(item?.fornecedor || '').trim(),
+    descricao: String(item?.descricao || '').trim(),
+    data_vencimento: String(item?.data_vencimento || '').trim(),
+    valor: Number(item?.valor) || 0,
+    categoria: String(item?.categoria || '').trim(),
+    tipo: String(item?.tipo || 'Outros').trim(),
+    chave_pix: String(item?.chave_pix || '').trim(),
+  }
+}
+
+/**
+ * Envia um documento avulso (boleto, guia de imposto/taxa, comprovante,
+ * nota fiscal etc — imagem ou PDF) direto pro Gemini e devolve UM único
+ * pagamento estruturado, pra preencher automaticamente o formulário de
+ * "Novo Agendamento" (fornecedor, descrição, vencimento, valor, categoria,
+ * tipo e chave PIX quando aplicável).
+ */
+export async function extrairDocumentoAvulso(file: File): Promise<ItemAvulso> {
+  const { base64, mimeType } = await fileParaBase64(file)
+  const model = getModel()
+
+  const prompt = `Você é um especialista em ler documentos financeiros brasileiros: boletos, guias de imposto (DAS, DARF, GPS, FGTS, ICMS, ISS etc.), taxas, notas fiscais e comprovantes de pagamento.
+Analise o documento anexado (imagem ou PDF) e extraia os dados do pagamento principal desse documento.
+
+Devolva um objeto JSON com exatamente estes campos:
+- "fornecedor": nome do beneficiário/fornecedor a quem o pagamento se destina (razão social, se disponível; para guias de imposto, use o nome do tributo/órgão, ex: "DAS - Simples Nacional")
+- "descricao": uma descrição curta do que é esse pagamento (ex: "Guia DAS competência 07/2026", "Boleto NF 1234")
+- "data_vencimento": data de vencimento no formato "AAAA-MM-DD"
+- "valor": valor numérico total a pagar, usando PONTO como separador decimal, sem "R$" e sem separador de milhar (ex: 1384.48)
+- "categoria": uma sugestão curta de categoria, escolhendo a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
+- "tipo": o meio de pagamento identificado — use exatamente um destes valores: "PIX", "Boleto", "TED", "Folha", "Imposto", "Outros"
+- "chave_pix": se o documento tiver uma chave PIX visível (copia e cola, e-mail, telefone, CPF/CNPJ ou chave aleatória), coloque aqui. Caso contrário, deixe ""
+
+Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplo do formato exato:
+{"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","data_vencimento":"2026-07-30","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
+
+Se não conseguir identificar algum campo com confiança, preencha os que conseguir e deixe os demais em branco ("" ou 0) — não invente dados.`
+
+  const result = await model.generateContent([
+    { text: prompt },
+    { inlineData: { mimeType, data: base64 } },
+  ])
+
+  const texto = result.response.text()
+  const dados = extrairJSON(texto)
+
+  // A IA pode devolver o objeto direto ou, ocasionalmente, dentro de um array de 1 item
+  const item = Array.isArray(dados) ? dados[0] : dados
+
+  return normalizarItemAvulso(item)
 }

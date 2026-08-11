@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Calendar as CalendarIcon, Upload, CheckCircle2, Loader2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { X, Calendar as CalendarIcon, Upload, CheckCircle2, Loader2, Sparkles, FileCheck2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Empresa } from '@/types'
@@ -24,9 +24,46 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [tipo, setTipo] = useState('PIX')
   const [chavePix, setChavePix] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [lendoAnexo, setLendoAnexo] = useState(false)
+  const [nomeAnexo, setNomeAnexo] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   if (!open) return null
+
+  const handleArquivoAnexo = async (file: File | undefined | null) => {
+    if (!file) return
+    setNomeAnexo(file.name)
+    setLendoAnexo(true)
+    toast.loading('Lendo documento com IA...', { id: 'ler_anexo' })
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const resp = await fetch('/api/extrair-anexo', { method: 'POST', body: formData })
+      const json = await resp.json()
+
+      if (!resp.ok) {
+        throw new Error(json.error || 'Falha ao ler o documento.')
+      }
+
+      const dados = json.dados
+      if (dados.fornecedor) setFornecedor(dados.fornecedor)
+      if (dados.descricao) setDescricao(dados.descricao)
+      if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
+      if (dados.valor) setValor(String(dados.valor))
+      if (dados.categoria) setCategoria(dados.categoria)
+      if (dados.tipo) setTipo(dados.tipo)
+      if (dados.chave_pix) setChavePix(dados.chave_pix)
+
+      toast.success('Documento lido! Confira os campos antes de salvar.', { id: 'ler_anexo' })
+    } catch (err: any) {
+      toast.error(err.message || 'Não foi possível ler o anexo automaticamente. Preencha manualmente.', { id: 'ler_anexo' })
+    } finally {
+      setLendoAnexo(false)
+    }
+  }
 
   const handleSalvar = async () => {
     if (!empresaAtiva) return
@@ -138,10 +175,49 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-400 uppercase">Anexo (Opcional)</label>
-            <div className="border-2 border-dashed border-dark-700 rounded-xl p-8 flex flex-col items-center justify-center text-dark-500 hover:bg-dark-800 hover:text-dark-300 hover:border-dark-500 cursor-pointer transition-all">
-              <Upload size={24} className="mb-2" />
-              <p className="text-sm font-medium">Arraste um arquivo ou clique para fazer upload</p>
+            <label className="text-xs font-semibold text-dark-400 uppercase flex items-center gap-1.5">
+              Anexo (Opcional)
+              <span className="normal-case text-dark-500 font-normal flex items-center gap-1">
+                <Sparkles size={12} className="text-brand-400" /> a IA preenche os campos acima pra você
+              </span>
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={e => handleArquivoAnexo(e.target.files?.[0])}
+            />
+            <div
+              onClick={() => !lendoAnexo && fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault()
+                if (!lendoAnexo) handleArquivoAnexo(e.dataTransfer.files?.[0])
+              }}
+              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-all ${
+                lendoAnexo
+                  ? 'border-brand-500 bg-brand-500/5 text-brand-300 cursor-wait'
+                  : 'border-dark-700 text-dark-500 hover:bg-dark-800 hover:text-dark-300 hover:border-dark-500 cursor-pointer'
+              }`}
+            >
+              {lendoAnexo ? (
+                <>
+                  <Loader2 size={24} className="mb-2 animate-spin" />
+                  <p className="text-sm font-medium">Lendo documento com IA...</p>
+                </>
+              ) : nomeAnexo ? (
+                <>
+                  <FileCheck2 size={24} className="mb-2 text-emerald-400" />
+                  <p className="text-sm font-medium text-dark-300">{nomeAnexo}</p>
+                  <p className="text-xs text-dark-500 mt-1">Clique pra trocar o arquivo</p>
+                </>
+              ) : (
+                <>
+                  <Upload size={24} className="mb-2" />
+                  <p className="text-sm font-medium">Arraste um boleto/imposto ou clique para fazer upload</p>
+                </>
+              )}
             </div>
           </div>
 
