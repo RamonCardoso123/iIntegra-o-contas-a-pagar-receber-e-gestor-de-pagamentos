@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
 import { Empresa, Grupo } from '@/types'
+import { exportarRelatorioGeralXlsx, LojaRelatorio, PagamentoRelatorio } from '@/lib/exporters/relatorio-grupo-xlsx'
 
 export default function GrupoDetalhe() {
   const params = useParams()
@@ -25,6 +26,9 @@ export default function GrupoDetalhe() {
   const [empresasDisponiveis, setEmpresasDisponiveis] = useState<Empresa[]>([])
   const [carregandoDisponiveis, setCarregandoDisponiveis] = useState(false)
   const [adicionandoId, setAdicionandoId] = useState<string | null>(null)
+
+  const [menuExportarAberto, setMenuExportarAberto] = useState(false)
+  const [exportando, setExportando] = useState(false)
 
   useEffect(() => {
     if (grupoId) carregarGrupo()
@@ -47,6 +51,77 @@ export default function GrupoDetalhe() {
     const { data } = await supabase.from('empresas').select('*').is('grupo_id', null).order('nome')
     setEmpresasDisponiveis(data || [])
     setCarregandoDisponiveis(false)
+  }
+
+  async function handleExportarGeral() {
+    if (!grupo) return
+    if (lojas.length === 0) {
+      toast.error('Esse grupo ainda não tem nenhuma loja.')
+      return
+    }
+    setExportando(true)
+    setMenuExportarAberto(false)
+    toast.loading('Gerando relatório...', { id: 'export-geral' })
+    try {
+      const lojasRelatorio: LojaRelatorio[] = await Promise.all(
+        lojas.map(async (loja) => {
+          const { data: ddas } = await supabase
+            .from('pagamentos_dda')
+            .select('*')
+            .eq('empresa_id', loja.id)
+
+          const { data: agendamentos } = await supabase
+            .from('agendamentos')
+            .select('*')
+            .eq('empresa_id', loja.id)
+
+          const pagamentos: PagamentoRelatorio[] = [
+            ...(ddas || []).map((d: any) => ({
+              origem: 'DDA' as const,
+              beneficiario: d.beneficiario,
+              documento: d.documento,
+              descricao: d.descricao,
+              data_vencimento: d.data_vencimento,
+              valor: Number(d.valor || 0),
+              status: d.status,
+            })),
+            ...(agendamentos || []).map((a: any) => {
+              const origem =
+                a.tipo === 'Transferência'
+                  ? ('Transferência' as const)
+                  : a.tipo === 'Transferência Recebida'
+                  ? ('Transferência Recebida' as const)
+                  : a.tipo?.includes('Folha') || a.tipo === 'Adiantamento'
+                  ? ('Folha' as const)
+                  : ('Agendamento' as const)
+              return {
+                origem,
+                fornecedor: a.fornecedor,
+                documento: a.documento,
+                descricao: a.descricao,
+                data_vencimento: a.data_vencimento,
+                valor: Number(a.valor || 0),
+                status: a.status,
+              }
+            }),
+          ]
+
+          return { nome: loja.nome, pagamentos }
+        })
+      )
+
+      exportarRelatorioGeralXlsx(grupo.nome, lojasRelatorio)
+      toast.success('Relatório exportado!', { id: 'export-geral' })
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao gerar relatório', { id: 'export-geral' })
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  function handleExportarEmBreve(nome: string) {
+    setMenuExportarAberto(false)
+    toast(`"${nome}" ainda não está disponível. Em breve!`, { icon: '🚧' })
   }
 
   async function handleAdicionarLoja(empresa: Empresa) {
@@ -126,9 +201,45 @@ export default function GrupoDetalhe() {
             <Plus size={16} /> Nova Loja
           </button>
 
-          <button className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-            <Upload size={16} className="text-dark-300" /> Exportar <ChevronDown size={14} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setMenuExportarAberto(!menuExportarAberto)}
+              disabled={exportando}
+              className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {exportando ? <Loader2 size={16} className="animate-spin text-dark-300" /> : <Upload size={16} className="text-dark-300" />}
+              Exportar <ChevronDown size={14} className={menuExportarAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+
+            {menuExportarAberto && (
+              <div className="absolute top-full right-0 mt-2 w-56 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <button onClick={handleExportarGeral} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                  <FileText size={16} className="text-blue-400" />
+                  <span className="text-sm font-semibold text-white">Excel Geral (.xlsx)</span>
+                </button>
+                <button onClick={() => handleExportarEmBreve('PDF Geral (.pdf)')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                  <FileText size={16} className="text-rose-400" />
+                  <span className="text-sm font-semibold text-white">PDF Geral (.pdf)</span>
+                </button>
+                <button onClick={() => handleExportarEmBreve('Excel – Folha')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                  <FileText size={16} className="text-emerald-400" />
+                  <span className="text-sm font-semibold text-white">Excel – Folha</span>
+                </button>
+                <button onClick={() => handleExportarEmBreve('Excel – DDA')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                  <FileText size={16} className="text-blue-400" />
+                  <span className="text-sm font-semibold text-white">Excel – DDA</span>
+                </button>
+                <button onClick={() => handleExportarEmBreve('Excel – Agend.')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors border-b border-dark-700/50">
+                  <FileText size={16} className="text-amber-400" />
+                  <span className="text-sm font-semibold text-white">Excel – Agend.</span>
+                </button>
+                <button onClick={() => handleExportarEmBreve('Backup Global (.json)')} className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-dark-700 transition-colors">
+                  <FileText size={16} className="text-dark-300" />
+                  <span className="text-sm font-semibold text-white">Backup Global (.json)</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
