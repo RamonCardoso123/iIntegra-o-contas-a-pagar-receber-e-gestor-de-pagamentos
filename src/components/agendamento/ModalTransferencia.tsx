@@ -38,22 +38,42 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
 
     setSalvando(true)
     try {
+      const empresaOrigem = empresas.find(e => e.id === origem)
       const empresaDestino = empresas.find(e => e.id === destino)
-      
+      const valorNumerico = parseFloat(valor.replace(',', '.'))
+
       // Cria a transferência como um agendamento com o tipo Transferência
+      // (saída de caixa na loja de origem)
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: origem,
         fornecedor: empresaDestino?.nome || 'Loja Destino',
         descricao: descricao || `Transferência para ${empresaDestino?.nome}`,
         data_vencimento: dataTransferencia,
-        valor: parseFloat(valor.replace(',', '.')),
+        valor: valorNumerico,
         categoria: 'Transferência',
         tipo: 'Transferência'
       })
 
       if (error) throw error
 
-      toast.success('Transferência registrada com sucesso!')
+      // E também um registro de entrada na loja de destino, pra ela ver o
+      // valor recebido no caixa (senão a transferência só aparecia como
+      // saída na origem e a loja destino nunca via o valor entrando).
+      const { error: erroDestino } = await supabase.from('agendamentos').insert({
+        empresa_id: destino,
+        fornecedor: empresaOrigem?.nome || 'Loja Origem',
+        descricao: descricao || `Transferência recebida de ${empresaOrigem?.nome}`,
+        data_vencimento: dataTransferencia,
+        valor: valorNumerico,
+        categoria: 'Transferência',
+        tipo: 'Transferência Recebida'
+      })
+
+      if (erroDestino) {
+        toast.error('A transferência foi registrada na loja de origem, mas não foi possível lançar a entrada na loja de destino: ' + erroDestino.message)
+      } else {
+        toast.success('Transferência registrada com sucesso!')
+      }
       onSuccess()
       onClose()
     } catch (err: any) {

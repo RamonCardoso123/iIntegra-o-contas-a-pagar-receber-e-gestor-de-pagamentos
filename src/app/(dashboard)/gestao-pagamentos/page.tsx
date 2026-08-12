@@ -76,7 +76,14 @@ export default function GestaoPagamentos() {
 
     const unificados = [
       ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
-      ...(agendamentos || []).map(f => ({ ...f, origem: f.tipo === 'Transferência' ? 'Transferência' : (f.tipo?.includes('Folha') ? 'Folha' : 'Agendamento') }))
+      ...(agendamentos || []).map(f => ({
+        ...f,
+        origem: f.tipo === 'Transferência'
+          ? 'Transferência'
+          : f.tipo === 'Transferência Recebida'
+          ? 'Transferência Recebida'
+          : (f.tipo?.includes('Folha') ? 'Folha' : 'Agendamento')
+      }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     
     setPagamentos(unificados)
@@ -207,7 +214,7 @@ export default function GestaoPagamentos() {
           vencimento: pagamento.data_vencimento,
           emissao: pagamento.data_vencimento,
           descricao: pagamento.origem === 'DDA' ? `DDA - Doc: ${pagamento.documento}` : pagamento.descricao,
-          categoria: pagamento.origem === 'Transferência' ? 'Transferência de Saída' : 'Materiais para Revenda',
+          categoria: pagamento.categoria || (pagamento.origem === 'Transferência' ? 'Transferência de Saída' : 'Outros'),
           status: 'pendente'
         })
         .select('id')
@@ -247,9 +254,13 @@ export default function GestaoPagamentos() {
     }
   }
 
-  const totalDespesas = pagamentos.reduce((acc, curr) => acc + Number(curr.valor), 0)
-  const saldoCaixa = 0.00 
-  const totalEntradas = 0.00 
+  // Transferência Recebida é uma entrada de caixa (crédito na loja de
+  // destino), não uma despesa — por isso fica fora do Total Despesas e
+  // soma no Entradas. As demais linhas (DDA, Folha, Agendamento, e a
+  // Transferência de saída na loja de origem) são despesas de verdade.
+  const totalDespesas = pagamentos.filter(p => p.origem !== 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
+  const totalEntradas = pagamentos.filter(p => p.origem === 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
+  const saldoCaixa = 0.00
   const saldoFinalEstimado = saldoCaixa + totalEntradas - totalDespesas
 
   // Lógica de agrupamento para DDA e Folha
@@ -686,9 +697,9 @@ export default function GestaoPagamentos() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`text-[10px] font-black uppercase tracking-wider ${
-                            pag.origem === 'Transferência' ? 'text-emerald-400' : 'text-dark-300'
+                            pag.origem === 'Transferência' || pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-dark-300'
                           }`}>
-                            {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem}
+                            {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-bold text-white text-sm">
@@ -718,7 +729,7 @@ export default function GestaoPagamentos() {
                         <td className="px-6 py-4 text-sm text-dark-300">
                           {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
                         </td>
-                        <td className="px-6 py-4 font-bold text-rose-400 text-sm">
+                        <td className={`px-6 py-4 font-bold text-sm ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -924,7 +935,8 @@ export default function GestaoPagamentos() {
                           <option value="Imposto">Imposto</option>
                           <option value="Folha Mensal">Folha Mensal</option>
                           <option value="Adiantamento">Adiantamento</option>
-                          <option value="Transferência">Transferência</option>
+                          <option value="Transferência">Transferência (saída)</option>
+                          <option value="Transferência Recebida">Transferência Recebida (entrada)</option>
                           <option value="Outros">Outros</option>
                         </select>
                      </div>
