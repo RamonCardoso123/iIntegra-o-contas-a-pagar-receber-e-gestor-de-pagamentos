@@ -23,6 +23,15 @@ export interface Empresa {
   razao_social?: string | null
   /** Nome Fantasia obtido via Brasil API */
   nome_fantasia?: string | null
+  /** Grupo (Gestão de Pagamentos) ao qual esta loja pertence, se houver */
+  grupo_id?: string | null
+}
+
+export interface Grupo {
+  id: string
+  nome: string
+  created_at: string
+  updated_at: string
 }
 
 export interface UsuarioEmpresa {
