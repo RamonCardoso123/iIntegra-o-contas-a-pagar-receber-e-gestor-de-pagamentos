@@ -54,6 +54,32 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
   if (!open) return null
 
+  // Limpa todos os campos do formulário — chamado depois de salvar com
+  // sucesso e ao cancelar/fechar, pra não ficar lixo de um agendamento
+  // pro próximo que for cadastrado.
+  const limparFormulario = () => {
+    setFornecedor('')
+    setDescricao('')
+    setDataVencimento('')
+    setDataCompetencia('')
+    setValor('')
+    setCategoria('')
+    setContaPagamento('')
+    setTipo('PIX')
+    setChavePix('')
+    setNomeAnexo('')
+    setArquivoAnexo(null)
+    setEditandoFornecedor(false)
+    setEditandoCategoria(false)
+    setEditandoConta(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleFechar = () => {
+    limparFormulario()
+    onClose()
+  }
+
   const handleArquivoAnexo = async (file: File | undefined | null) => {
     if (!file) return
     setNomeAnexo(file.name)
@@ -151,6 +177,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
       toast.success('Agendamento criado com sucesso!')
       onSuccess()
+      limparFormulario()
       onClose()
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar agendamento')
@@ -173,7 +200,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               <p className="text-dark-400 text-xs">Crie um novo lançamento ou agendamento manualmente</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
+          <button onClick={handleFechar} className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-all">
             <X size={20} />
           </button>
         </div>
@@ -326,7 +353,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
         {/* Footer */}
         <div className="p-5 border-t border-dark-700 flex justify-end gap-3 shrink-0 bg-dark-900 rounded-b-2xl">
-          <button onClick={onClose} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
+          <button onClick={handleFechar} className="px-5 py-2.5 rounded-xl font-semibold bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-all">
             Cancelar
           </button>
           <button onClick={handleSalvar} disabled={salvando} className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-900/30 transition-all disabled:opacity-50">
