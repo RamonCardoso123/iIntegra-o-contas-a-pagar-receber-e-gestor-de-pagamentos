@@ -10,10 +10,16 @@ interface Props {
   valorInicial: string
   onSelect: (nome: string) => void
   onCancel: () => void
+  /** ID da empresa/loja pra buscar os fornecedores. Se não vier, usa a
+   * empresa ativa do contexto global (comportamento antigo) — necessário
+   * em telas como Gestão de Pagamentos, onde cada card é de uma loja
+   * diferente e não tem relação com a "empresa ativa" do menu superior. */
+  empresaId?: string
 }
 
-export default function SelectorFornecedor({ valorInicial, onSelect, onCancel }: Props) {
+export default function SelectorFornecedor({ valorInicial, onSelect, onCancel, empresaId }: Props) {
   const { empresaAtiva } = useEmpresa()
+  const empresaIdFinal = empresaId || empresaAtiva?.id
   const [busca, setBusca] = useState(valorInicial)
   const [resultados, setResultados] = useState<{ nome: string }[]>([])
   const [loading, setLoading] = useState(false)
@@ -27,7 +33,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel }:
 
   useEffect(() => {
     const buscar = async () => {
-      if (!empresaAtiva || busca.length < 2) {
+      if (!empresaIdFinal || busca.length < 2) {
         setResultados([])
         return
       }
@@ -37,7 +43,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel }:
         const { data, error } = await supabase
           .from('fornecedores_contaazul')
           .select('nome')
-          .eq('empresa_id', empresaAtiva.id)
+          .eq('empresa_id', empresaIdFinal)
           .ilike('nome', `%${busca}%`)
           .limit(10)
 
@@ -53,7 +59,7 @@ export default function SelectorFornecedor({ valorInicial, onSelect, onCancel }:
 
     const timer = setTimeout(buscar, 300)
     return () => clearTimeout(timer)
-  }, [busca, empresaAtiva, supabase])
+  }, [busca, empresaIdFinal, supabase])
 
   return (
     <div className="relative w-full min-w-[200px]">

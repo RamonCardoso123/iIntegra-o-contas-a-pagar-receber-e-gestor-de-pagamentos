@@ -16,6 +16,7 @@ import ModalEdicaoEmMassa from '@/components/agendamento/ModalEdicaoEmMassa'
 import InputMoeda from '@/components/ui/InputMoeda'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
 import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
+import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 
@@ -59,6 +60,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
   const [editandoContaEdicao, setEditandoContaEdicao] = useState(false)
+  const [editandoFornecedorEdicao, setEditandoFornecedorEdicao] = useState(false)
   const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceiraOpcao[]>([])
 
   // Lista de contas do Conta Azul pra buscar por nome (evita digitar
@@ -908,7 +910,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           </a>
                         )}
                         <button
-                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
+                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
                           className="text-dark-400 hover:text-white transition-colors p-1"
                         >
                           <Edit2 size={16} />
@@ -1022,7 +1024,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
@@ -1038,7 +1040,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
@@ -1080,7 +1082,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Beneficiário <span className="text-rose-400">*</span></label>
-                      <input type="text" value={itemEditando.beneficiario || ''} onChange={e => setItemEditando({ ...itemEditando, beneficiario: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nome do beneficiário" />
+                      {editandoFornecedorEdicao ? (
+                        <SelectorFornecedor
+                          valorInicial={itemEditando.beneficiario || ''}
+                          empresaId={empresa.id}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, beneficiario: nome }); setEditandoFornecedorEdicao(false) }}
+                          onCancel={() => setEditandoFornecedorEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoFornecedorEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                        >
+                          {itemEditando.beneficiario || <span className="text-dark-500">Clique para buscar...</span>}
+                        </button>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Documento</label>
@@ -1157,7 +1174,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Fornecedor / Colaborador <span className="text-rose-400">*</span></label>
-                      <input type="text" value={itemEditando.fornecedor || ''} onChange={e => setItemEditando({ ...itemEditando, fornecedor: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nome do fornecedor" />
+                      {editandoFornecedorEdicao ? (
+                        <SelectorFornecedor
+                          valorInicial={itemEditando.fornecedor || ''}
+                          empresaId={empresa.id}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, fornecedor: nome }); setEditandoFornecedorEdicao(false) }}
+                          onCancel={() => setEditandoFornecedorEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoFornecedorEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                        >
+                          {itemEditando.fornecedor || <span className="text-dark-500">Clique para buscar...</span>}
+                        </button>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Forma de Pagamento</label>
