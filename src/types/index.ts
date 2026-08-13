@@ -27,6 +27,9 @@ export interface Empresa {
   grupo_id?: string | null
   /** Saldo em caixa desta loja (valor real informado manualmente pelo operador) */
   saldo_caixa?: number | null
+  /** Quando a loja foi colocada neste grupo — usado pra ordenar os cards
+   * na ordem de entrada (primeira colocada aparece primeiro) */
+  grupo_adicionado_em?: string | null
 }
 
 export interface Grupo {

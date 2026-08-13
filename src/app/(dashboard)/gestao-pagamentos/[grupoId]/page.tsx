@@ -45,7 +45,13 @@ export default function GrupoDetalhe() {
     const { data: grupoData } = await supabase.from('grupos').select('*').eq('id', grupoId).single()
     setGrupo(grupoData || null)
 
-    const { data: lojasData } = await supabase.from('empresas').select('*').eq('grupo_id', grupoId).order('nome')
+    // Ordena pela ordem em que cada loja foi colocada no grupo (primeira
+    // adicionada aparece primeiro), não por ordem alfabética.
+    const { data: lojasData } = await supabase
+      .from('empresas')
+      .select('*')
+      .eq('grupo_id', grupoId)
+      .order('grupo_adicionado_em', { ascending: true, nullsFirst: true })
     setLojas(lojasData || [])
     setCarregando(false)
   }
@@ -132,7 +138,10 @@ export default function GrupoDetalhe() {
   async function handleAdicionarLoja(empresa: Empresa) {
     setAdicionandoId(empresa.id)
     try {
-      const { error } = await supabase.from('empresas').update({ grupo_id: grupoId }).eq('id', empresa.id)
+      const { error } = await supabase
+        .from('empresas')
+        .update({ grupo_id: grupoId, grupo_adicionado_em: new Date().toISOString() })
+        .eq('id', empresa.id)
       if (error) throw error
       toast.success(`${empresa.nome} adicionada ao grupo!`)
       setModalNovaLojaAberto(false)
