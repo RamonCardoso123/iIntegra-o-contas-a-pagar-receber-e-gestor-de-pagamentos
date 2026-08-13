@@ -43,10 +43,86 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [selecionados, setSelecionados] = useState<string[]>([])
 
+  const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
+  const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
+
   useEffect(() => {
     carregarPagamentos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresa.id, dataInicio, dataFim])
+
+  const OPCOES_PERIODO: { key: string; label: string }[] = [
+    { key: 'hoje', label: 'Hoje' },
+    { key: 'semana', label: 'Esta semana' },
+    { key: 'mes', label: 'Este mês' },
+    { key: 'ano', label: 'Este ano' },
+    { key: '30dias', label: 'Últimos 30 dias' },
+    { key: '12meses', label: 'Últimos 12 meses' },
+    { key: 'tudo', label: 'Todo o período' },
+    { key: 'personalizado', label: 'Período personalizado' },
+  ]
+
+  function fmtISO(d: Date) {
+    return d.toISOString().split('T')[0]
+  }
+
+  function aplicarPeriodo(key: string) {
+    if (key === 'personalizado') {
+      setPeriodoAtivo(key)
+      setMenuPeriodoAberto(false)
+      return
+    }
+
+    const agora = new Date()
+    let novoInicio = dataInicio
+    let novoFim = dataFim
+
+    if (key === 'hoje') {
+      novoInicio = novoFim = fmtISO(agora)
+    } else if (key === 'semana') {
+      const diaSemana = agora.getDay() // 0 = domingo
+      const diff = diaSemana === 0 ? -6 : 1 - diaSemana
+      const seg = new Date(agora)
+      seg.setDate(agora.getDate() + diff)
+      const dom = new Date(seg)
+      dom.setDate(seg.getDate() + 6)
+      novoInicio = fmtISO(seg)
+      novoFim = fmtISO(dom)
+    } else if (key === 'mes') {
+      novoInicio = fmtISO(new Date(agora.getFullYear(), agora.getMonth(), 1))
+      novoFim = fmtISO(new Date(agora.getFullYear(), agora.getMonth() + 1, 0))
+    } else if (key === 'ano') {
+      novoInicio = fmtISO(new Date(agora.getFullYear(), 0, 1))
+      novoFim = fmtISO(new Date(agora.getFullYear(), 11, 31))
+    } else if (key === '30dias') {
+      const passado = new Date(agora)
+      passado.setDate(agora.getDate() - 30)
+      novoInicio = fmtISO(passado)
+      novoFim = fmtISO(agora)
+    } else if (key === '12meses') {
+      const passado = new Date(agora)
+      passado.setFullYear(agora.getFullYear() - 1)
+      novoInicio = fmtISO(passado)
+      novoFim = fmtISO(agora)
+    } else if (key === 'tudo') {
+      novoInicio = '2000-01-01'
+      novoFim = '2099-12-31'
+    }
+
+    setDataInicio(novoInicio)
+    setDataFim(novoFim)
+    setPeriodoAtivo(key)
+    setMenuPeriodoAberto(false)
+  }
+
+  function labelPeriodoAtivo() {
+    if (periodoAtivo === 'personalizado') {
+      return dataInicio === dataFim
+        ? dataInicio.split('-').reverse().join('/')
+        : `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`
+    }
+    return OPCOES_PERIODO.find(o => o.key === periodoAtivo)?.label || 'Selecionar período'
+  }
 
   async function carregarPagamentos() {
     setCarregando(true)
@@ -384,32 +460,61 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
 
       {/* Filters Row */}
       <div className="p-6 border-b border-dark-700 flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-dark-400 uppercase tracking-wider flex items-center gap-2">
-            <Calendar size={14} /> Filtrar por período de pagamento
-          </span>
-          <input
-            type="date"
-            value={dataInicio}
-            onChange={e => {
-              const novaDataInicio = e.target.value
-              setDataInicio(novaDataInicio)
-              if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
-            }}
-            className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
-          />
-          <span className="text-dark-500 text-sm">até</span>
-          <input
-            type="date"
-            value={dataFim}
-            min={dataInicio}
-            onChange={e => setDataFim(e.target.value)}
-            className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
-          />
+        <span className="text-xs font-bold text-dark-400 uppercase tracking-wider flex items-center gap-2">
+          <Calendar size={14} /> Vencimento
+        </span>
+
+        <div className="relative">
+          <button
+            onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
+            className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors min-w-[180px] justify-between"
+          >
+            {labelPeriodoAtivo()}
+            <ChevronDown size={14} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          </button>
+
+          {menuPeriodoAberto && (
+            <div className="absolute top-full mt-2 left-0 w-52 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+              {OPCOES_PERIODO.map(op => (
+                <button
+                  key={op.key}
+                  onClick={() => aplicarPeriodo(op.key)}
+                  className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    periodoAtivo === op.key ? 'bg-blue-600 text-white' : 'text-dark-200 hover:bg-dark-700'
+                  } ${op.key === 'personalizado' ? 'border-t border-dark-700' : ''}`}
+                >
+                  {op.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
-          <Search size={14} /> Filtrar por Data
-        </button>
+
+        {periodoAtivo === 'personalizado' && (
+          <div className="flex items-center gap-3 animate-fade-in">
+            <input
+              type="date"
+              value={dataInicio}
+              onChange={e => {
+                const novaDataInicio = e.target.value
+                setDataInicio(novaDataInicio)
+                if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
+              }}
+              className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+            />
+            <span className="text-dark-500 text-sm">até</span>
+            <input
+              type="date"
+              value={dataFim}
+              min={dataInicio}
+              onChange={e => setDataFim(e.target.value)}
+              className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+            />
+            <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
+              <Search size={14} /> Filtrar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Action Row */}
