@@ -485,7 +485,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
               disabled={salvandoSaldo}
               onBlur={handleSalvarSaldoCaixa}
               title="Digite o saldo real da conta desta loja"
-              className="text-3xl font-bold text-white bg-transparent text-right w-32 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
+              className="text-xl font-bold text-white bg-transparent text-right w-28 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
             />
           </div>
         </div>
@@ -774,19 +774,19 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
       <div className="bg-[#0b0e14] border-t border-dark-700 px-6 py-8 flex flex-col md:flex-row justify-between gap-6">
         <div>
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Total Despesas</p>
-          <p className="text-2xl font-black text-rose-500">
+          <p className="text-lg font-black text-rose-500">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
           </p>
         </div>
         <div className="md:border-l md:border-dark-700 md:pl-12">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Entradas (Transf)</p>
-          <p className="text-2xl font-black text-emerald-500">
+          <p className="text-lg font-black text-emerald-500">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
           </p>
         </div>
         <div className="md:ml-auto text-right">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo Final Estimado</p>
-          <p className={`text-2xl font-black ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <p className={`text-lg font-black ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
           </p>
         </div>
