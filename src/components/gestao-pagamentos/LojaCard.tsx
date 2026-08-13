@@ -12,6 +12,7 @@ import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
 import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
 import ModalTransferirLancamento from '@/components/agendamento/ModalTransferirLancamento'
+import ModalEdicaoEmMassa from '@/components/agendamento/ModalEdicaoEmMassa'
 import InputMoeda from '@/components/ui/InputMoeda'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
 import { useEmpresa } from '@/contexts/EmpresaContext'
@@ -63,6 +64,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalTransferirAberto, setModalTransferirAberto] = useState(false)
   const [itensParaTransferir, setItensParaTransferir] = useState<any[]>([])
   const [transferindoLancamento, setTransferindoLancamento] = useState(false)
+
+  // Edição em massa de Categoria/Competência (ex: DDA importado sem
+  // categoria, que bloqueia o envio pro Contas a Pagar).
+  const [modalEdicaoMassaAberto, setModalEdicaoMassaAberto] = useState(false)
+  const [itensEdicaoMassa, setItensEdicaoMassa] = useState<any[]>([])
+  const [salvandoEdicaoMassa, setSalvandoEdicaoMassa] = useState(false)
 
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
@@ -519,6 +526,44 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
+  function abrirEdicaoEmMassa(itens: any[]) {
+    if (itens.length === 0) return
+    setItensEdicaoMassa(itens)
+    setModalEdicaoMassaAberto(true)
+  }
+
+  // Aplica Categoria e/ou Competência a vários lançamentos de uma vez —
+  // pensado pro caso do DDA importado sem categoria, que bloqueava o
+  // envio pro Contas a Pagar item por item.
+  const handleConfirmarEdicaoEmMassa = async (dados: { categoria?: string; competencia?: string }) => {
+    const payload: Record<string, string> = {}
+    if (dados.categoria) payload.categoria = dados.categoria
+    if (dados.competencia) payload.competencia = dados.competencia
+    if (Object.keys(payload).length === 0) return
+
+    const ids = itensEdicaoMassa.map(i => i.id)
+    if (ids.length === 0) return
+
+    // Os itens de um mesmo modal (DDA ou Folha) são sempre do mesmo tipo,
+    // então dá pra decidir a tabela olhando só o primeiro.
+    const tabela = itensEdicaoMassa[0]?.origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
+
+    setSalvandoEdicaoMassa(true)
+    try {
+      const { error } = await supabase.from(tabela).update(payload).in('id', ids)
+      if (error) throw error
+
+      toast.success(`${ids.length} lançamento(s) atualizado(s)!`)
+      setModalEdicaoMassaAberto(false)
+      setItensEdicaoMassa([])
+      carregarPagamentos()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar em massa')
+    } finally {
+      setSalvandoEdicaoMassa(false)
+    }
+  }
+
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemEditando) return
@@ -960,6 +1005,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
         onTransferirLote={(itens) => abrirModalTransferir(itens)}
+        onEditarEmMassa={abrirEdicaoEmMassa}
       />
 
       <ModalDetalhesLancamentos
@@ -975,6 +1021,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
         onTransferirLote={(itens) => abrirModalTransferir(itens)}
+        onEditarEmMassa={abrirEdicaoEmMassa}
+      />
+
+      <ModalEdicaoEmMassa
+        open={modalEdicaoMassaAberto}
+        onClose={() => setModalEdicaoMassaAberto(false)}
+        itens={itensEdicaoMassa}
+        onConfirmar={handleConfirmarEdicaoEmMassa}
+        salvando={salvandoEdicaoMassa}
       />
 
       <ModalTransferirLancamento

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Edit2, ArrowRightLeft, Trash2, Send } from 'lucide-react'
+import { X, Edit2, ArrowRightLeft, Trash2, Send, Tags } from 'lucide-react'
 
 interface ModalDetalhesProps {
   open: boolean
@@ -20,6 +20,8 @@ interface ModalDetalhesProps {
   /** Envia 1 ou mais lançamentos pro Contas a Pagar (fila de importação),
    * sem alterar nada aqui na Gestão de Pagamentos. */
   onEnviarContasAPagar?: (itens: any[]) => void
+  /** Preenche Categoria e/ou Competência de vários lançamentos de uma vez. */
+  onEditarEmMassa?: (itens: any[]) => void
 }
 
 export default function ModalDetalhesLancamentos({
@@ -34,7 +36,8 @@ export default function ModalDetalhesLancamentos({
   onTransferirItem,
   onTransferirLote,
   onToggleStatus,
-  onEnviarContasAPagar
+  onEnviarContasAPagar,
+  onEditarEmMassa
 }: ModalDetalhesProps) {
   const [selecionados, setSelecionados] = useState<string[]>([])
 
@@ -113,6 +116,14 @@ export default function ModalDetalhesLancamentos({
                          className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                        >
                          Voltar para Aberto
+                       </button>
+                     )}
+                     {onEditarEmMassa && (
+                       <button
+                         onClick={() => { onEditarEmMassa(lancamentos.filter(l => selecionados.includes(l.id))); setSelecionados([]) }}
+                         className="bg-dark-600 hover:bg-dark-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
+                       >
+                         <Tags size={14} /> Editar em Massa
                        </button>
                      )}
                      {onEnviarContasAPagar && (
