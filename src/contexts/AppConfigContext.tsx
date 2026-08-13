@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export type AccentColor = 'violet' | 'blue' | 'emerald' | 'rose' | 'amber' | 'cyan'
 
@@ -9,6 +10,7 @@ export interface AppConfig {
   appLogoUrl: string | null
   appNome: string
   darkMode: boolean
+  nomeExibicao: string
 }
 
 const DEFAULT: AppConfig = {
@@ -16,22 +18,54 @@ const DEFAULT: AppConfig = {
   appLogoUrl: null,
   appNome: 'Connecta AI',
   darkMode: true,
+  nomeExibicao: '',
 }
 
-const STORAGE_KEY = 'connecta_app_config'
+// Logo/nome do app é configuração compartilhada (não é por usuário) —
+// continua salva no navegador como sempre foi.
+const APP_STORAGE_KEY = 'connecta_app_config'
 
-function load(): AppConfig {
-  if (typeof window === 'undefined') return DEFAULT
+function loadAppShared(): Pick<AppConfig, 'appLogoUrl' | 'appNome'> {
+  if (typeof window === 'undefined') return { appLogoUrl: DEFAULT.appLogoUrl, appNome: DEFAULT.appNome }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULT, ...JSON.parse(raw) }
+    const raw = localStorage.getItem(APP_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return { appLogoUrl: parsed.appLogoUrl ?? DEFAULT.appLogoUrl, appNome: parsed.appNome ?? DEFAULT.appNome }
+    }
   } catch { /* empty */ }
-  return DEFAULT
+  return { appLogoUrl: DEFAULT.appLogoUrl, appNome: DEFAULT.appNome }
 }
 
-function save(cfg: AppConfig) {
+function saveAppShared(cfg: Pick<AppConfig, 'appLogoUrl' | 'appNome'>) {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg))
+  localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(cfg))
+}
+
+type PerfilPessoal = Pick<AppConfig, 'accentColor' | 'nomeExibicao'>
+
+// Cor de destaque e nome de exibição são pessoais — atrelados ao usuário
+// que logou. Guarda um cache local por usuário (carregamento instantâneo,
+// sem esperar a rede) e sincroniza com a tabela perfis_usuario no
+// Supabase, que é a fonte de verdade (a preferência segue o usuário em
+// qualquer navegador/dispositivo, e não se mistura entre contas
+// diferentes no mesmo computador).
+function perfilKey(userId: string) {
+  return `connecta_perfil_${userId}`
+}
+
+function loadPerfilCache(userId: string): PerfilPessoal | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(perfilKey(userId))
+    if (raw) return JSON.parse(raw)
+  } catch { /* empty */ }
+  return null
+}
+
+function savePerfilCache(userId: string, cfg: PerfilPessoal) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(perfilKey(userId), JSON.stringify(cfg))
 }
 
 const ACCENT_CLASSES: Record<AccentColor, { bg: string; text: string; border: string; ring: string }> = {
@@ -53,7 +87,9 @@ interface AppConfigCtx {
 const Ctx = createContext<AppConfigCtx | null>(null)
 
 export function AppConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<AppConfig>(load)
+  const [config, setConfig] = useState<AppConfig>(() => ({ ...DEFAULT, ...loadAppShared() }))
+  const userIdRef = useRef<string | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     // aplica classe dark no html
@@ -64,10 +100,90 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     }
   }, [config.darkMode])
 
+  // Carrega a preferência pessoal (cor + nome) do usuário logado — primeiro
+  // do cache local (instantâneo), depois confirma/corrige com o que está
+  // salvo no Supabase.
+  useEffect(() => {
+    let cancelado = false
+
+    async function carregarPerfil() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (cancelado) return
+      if (!user) {
+        userIdRef.current = null
+        return
+      }
+      userIdRef.current = user.id
+
+      const cache = loadPerfilCache(user.id)
+      if (cache) {
+        setConfig(prev => ({ ...prev, ...cache }))
+      }
+
+      const { data, error } = await supabase
+        .from('perfis_usuario')
+        .select('accent_color, nome_exibicao')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (cancelado || error || !data) return
+
+      const doBanco: PerfilPessoal = {
+        accentColor: (data.accent_color as AccentColor) || DEFAULT.accentColor,
+        nomeExibicao: data.nome_exibicao || '',
+      }
+      setConfig(prev => ({ ...prev, ...doBanco }))
+      savePerfilCache(user.id, doBanco)
+    }
+
+    carregarPerfil()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') carregarPerfil()
+      if (event === 'SIGNED_OUT') {
+        userIdRef.current = null
+        setConfig(prev => ({ ...prev, accentColor: DEFAULT.accentColor, nomeExibicao: '' }))
+      }
+    })
+
+    return () => {
+      cancelado = true
+      subscription.unsubscribe()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const update = (partial: Partial<AppConfig>) => {
     setConfig(prev => {
       const next = { ...prev, ...partial }
-      save(next)
+
+      // appLogoUrl/appNome são configuração do app (compartilhada) —
+      // continuam salvos no navegador, como sempre.
+      if ('appLogoUrl' in partial || 'appNome' in partial) {
+        saveAppShared({ appLogoUrl: next.appLogoUrl, appNome: next.appNome })
+      }
+
+      // accentColor/nomeExibicao são pessoais — salvam atrelados ao
+      // usuário logado (cache local + Supabase).
+      if ('accentColor' in partial || 'nomeExibicao' in partial) {
+        const userId = userIdRef.current
+        const perfil: PerfilPessoal = { accentColor: next.accentColor, nomeExibicao: next.nomeExibicao }
+        if (userId) {
+          savePerfilCache(userId, perfil)
+          supabase
+            .from('perfis_usuario')
+            .upsert({
+              user_id: userId,
+              accent_color: perfil.accentColor,
+              nome_exibicao: perfil.nomeExibicao || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+            .then(({ error }) => {
+              if (error) console.error('[AppConfig] Erro ao salvar perfil do usuário:', error.message)
+            })
+        }
+      }
+
       window.dispatchEvent(new Event('app-config-updated'))
       return next
     })
