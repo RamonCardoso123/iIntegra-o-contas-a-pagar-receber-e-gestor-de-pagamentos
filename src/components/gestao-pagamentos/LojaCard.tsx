@@ -1,16 +1,19 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown,
-  ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText
+  ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
 import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
 import InputMoeda from '@/components/ui/InputMoeda'
+import SelectorCategoria from '@/components/upload/SelectorCategoria'
+import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 
 interface LojaCardProps {
@@ -27,6 +30,8 @@ interface LojaCardProps {
 
 export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal }: LojaCardProps) {
   const supabase = createClient()
+  const router = useRouter()
+  const { setEmpresaAtiva } = useEmpresa()
   const hoje = new Date().toISOString().split('T')[0]
   const [dataInicio, setDataInicio] = useState(hoje)
   const [dataFim, setDataFim] = useState(hoje)
@@ -50,6 +55,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [selecionados, setSelecionados] = useState<string[]>([])
+  const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
 
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
@@ -429,6 +435,60 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
+  // Envia 1 ou mais lançamentos (DDA, Folha ou Agendamento) pra fila do
+  // Contas a Pagar (contas_pagar_importadas) e abre a tela de Contas a
+  // Pagar já com a empresa certa selecionada, pra o usuário encaminhar
+  // pro Conta Azul por lá. Não altera/remove/marca nada aqui na Gestão
+  // de Pagamentos — os dois lugares são independentes.
+  const handleEnviarParaContasAPagar = async (itensSelecionados: any[]) => {
+    if (itensSelecionados.length === 0) return
+
+    // Transferência entre lojas não é uma conta a pagar de fornecedor —
+    // não faz sentido nesse fluxo, então é ignorada silenciosamente.
+    const itensValidos = itensSelecionados.filter(i => i.origem !== 'Transferência' && i.origem !== 'Transferência Recebida')
+
+    if (itensValidos.length === 0) {
+      toast.error('Transferências não podem ser enviadas para o Contas a Pagar.')
+      return
+    }
+
+    const semCategoria = itensValidos.filter(i => !i.categoria)
+    if (semCategoria.length > 0) {
+      toast.error(`Preencha a Categoria de ${semCategoria.length} lançamento(s) antes de enviar (clique em editar).`)
+      return
+    }
+
+    try {
+      const linhas = itensValidos.map(item => ({
+        empresa_id: empresa.id,
+        fornecedor: String(item.fornecedor || item.beneficiario || '').trim(),
+        valor: Number(item.valor),
+        vencimento: item.data_vencimento,
+        categoria: item.categoria,
+        descricao: item.descricao || null,
+        doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
+        emissao: item.competencia || item.data_vencimento,
+        conta_financeira: item.conta_pagamento || null,
+        status: 'pendente',
+      }))
+
+      const { error } = await supabase
+        .from('contas_pagar_importadas')
+        .upsert(linhas, {
+          onConflict: 'empresa_id,fornecedor,valor,vencimento,doc',
+          ignoreDuplicates: true,
+        })
+
+      if (error) throw error
+
+      toast.success(`${linhas.length} lançamento(s) enviado(s) para o Contas a Pagar!`)
+      setEmpresaAtiva(empresa)
+      router.push('/contas-pagar')
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar para o Contas a Pagar')
+    }
+  }
+
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemEditando) return
@@ -458,6 +518,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             descricao: itemEditando.descricao,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
+            competencia: itemEditando.competencia || null,
             status: itemEditando.status,
           }
         : {
@@ -624,6 +685,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <button onClick={() => handleAgendarEmLote(selecionados)} className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-3 py-1.5 rounded text-xs font-bold transition-colors">
               Agendar
             </button>
+            <button
+              onClick={() => handleEnviarParaContasAPagar(pagamentos.filter(p => selecionados.includes(p.id)))}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-1.5"
+            >
+              <Send size={12} /> Enviar p/ Contas a Pagar
+            </button>
           </div>
         )}
       </div>
@@ -776,11 +843,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           </a>
                         )}
                         <button
-                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); }}
+                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
                           className="text-dark-400 hover:text-white transition-colors p-1"
                         >
                           <Edit2 size={16} />
                         </button>
+                        {pag.origem !== 'Transferência' && (
+                          <button
+                            onClick={() => handleEnviarParaContasAPagar([pag])}
+                            className="text-dark-400 hover:text-blue-400 transition-colors p-1"
+                            title="Enviar para Contas a Pagar"
+                          >
+                            <Send size={16} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
                           className="text-dark-400 hover:text-rose-400 transition-colors p-1"
@@ -881,8 +957,9 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
         onToggleStatus={toggleStatus}
+        onEnviarContasAPagar={handleEnviarParaContasAPagar}
       />
 
       <ModalDetalhesLancamentos
@@ -893,8 +970,9 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
         onToggleStatus={toggleStatus}
+        onEnviarContasAPagar={handleEnviarParaContasAPagar}
       />
 
       {modalEdicaoAberto && itemEditando && (
@@ -921,13 +999,27 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
-                    <input type="text" value={itemEditando.categoria || ''} onChange={e => setItemEditando({ ...itemEditando, categoria: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Diversos" />
+                    {editandoCategoriaEdicao ? (
+                      <SelectorCategoria
+                        valorInicial={itemEditando.categoria || ''}
+                        onSelect={nome => { setItemEditando({ ...itemEditando, categoria: nome }); setEditandoCategoriaEdicao(false) }}
+                        onCancel={() => setEditandoCategoriaEdicao(false)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditandoCategoriaEdicao(true)}
+                        className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                      >
+                        {itemEditando.categoria || <span className="text-dark-500">Clique para buscar...</span>}
+                      </button>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
                     <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
                       <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
@@ -935,6 +1027,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
                       <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>
+                      <input type="date" value={itemEditando.competencia || ''} onChange={e => setItemEditando({ ...itemEditando, competencia: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Situação</label>

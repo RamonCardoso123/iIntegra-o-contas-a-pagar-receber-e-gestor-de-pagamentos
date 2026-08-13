@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Edit2, ArrowRightLeft, Trash2 } from 'lucide-react'
+import { X, Edit2, ArrowRightLeft, Trash2, Send } from 'lucide-react'
 
 interface ModalDetalhesProps {
   open: boolean
@@ -14,6 +14,9 @@ interface ModalDetalhesProps {
   onEditarItem?: (item: any) => void
   onTransferirItem?: (item: any) => void
   onToggleStatus?: (item: any) => void
+  /** Envia 1 ou mais lançamentos pro Contas a Pagar (fila de importação),
+   * sem alterar nada aqui na Gestão de Pagamentos. */
+  onEnviarContasAPagar?: (itens: any[]) => void
 }
 
 export default function ModalDetalhesLancamentos({
@@ -26,7 +29,8 @@ export default function ModalDetalhesLancamentos({
   onVoltarAberto,
   onEditarItem,
   onTransferirItem,
-  onToggleStatus
+  onToggleStatus,
+  onEnviarContasAPagar
 }: ModalDetalhesProps) {
   const [selecionados, setSelecionados] = useState<string[]>([])
 
@@ -100,11 +104,19 @@ export default function ModalDetalhesLancamentos({
                        </button>
                      )}
                      {hasAgendado && (
-                       <button 
+                       <button
                          onClick={() => { onVoltarAberto(selecionados); setSelecionados([]) }}
                          className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                        >
                          Voltar para Aberto
+                       </button>
+                     )}
+                     {onEnviarContasAPagar && (
+                       <button
+                         onClick={() => { onEnviarContasAPagar(lancamentos.filter(l => selecionados.includes(l.id))); setSelecionados([]) }}
+                         className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
+                       >
+                         <Send size={14} /> Enviar p/ Contas a Pagar
                        </button>
                      )}
                   </div>
@@ -130,6 +142,7 @@ export default function ModalDetalhesLancamentos({
                   <th className="px-6 py-4">Categoria</th>
                   <th className="px-6 py-4">Descrição</th>
                   <th className="px-6 py-4">Vencimento</th>
+                  <th className="px-6 py-4">Competência</th>
                   <th className="px-6 py-4">Situação</th>
                   <th className="px-6 py-4">Valor</th>
                   <th className="px-6 py-4 text-center">Ações</th>
@@ -138,7 +151,7 @@ export default function ModalDetalhesLancamentos({
               <tbody className="divide-y divide-dark-700/50">
                 {lancamentos.length === 0 ? (
                   <tr>
-                     <td colSpan={7} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                     <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
                        Nenhum lançamento encontrado.
                      </td>
                   </tr>
@@ -170,9 +183,12 @@ export default function ModalDetalhesLancamentos({
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
                            </td>
+                           <td className="px-6 py-4 text-sm text-dark-300">
+                              {pag.competencia ? pag.competencia.split('-').reverse().join('/') : '—'}
+                           </td>
                            <td className="px-6 py-4">
-                              <button 
-                                 onClick={() => onToggleStatus && onToggleStatus(pag)} 
+                              <button
+                                 onClick={() => onToggleStatus && onToggleStatus(pag)}
                                  className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
                                   pag.status === 'agendado' 
                                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20' 
@@ -195,6 +211,11 @@ export default function ModalDetalhesLancamentos({
                                  {onTransferirItem && (
                                    <button onClick={() => onTransferirItem(pag)} className="text-dark-400 hover:text-emerald-400 transition-colors p-1" title="Transferir">
                                       <ArrowRightLeft size={14}/>
+                                   </button>
+                                 )}
+                                 {onEnviarContasAPagar && (
+                                   <button onClick={() => onEnviarContasAPagar([pag])} className="text-dark-400 hover:text-blue-400 transition-colors p-1" title="Enviar para Contas a Pagar">
+                                      <Send size={14}/>
                                    </button>
                                  )}
                                  <button onClick={() => onDelete([pag.id])} className="text-dark-400 hover:text-rose-400 transition-colors p-1" title="Excluir">
