@@ -468,7 +468,9 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         valor: Number(item.valor),
         vencimento: item.data_vencimento,
         categoria: item.categoria,
-        descricao: item.descricao || null,
+        // Se não tiver descrição preenchida (comum no DDA importado),
+        // usa "Doc: X" como no restante do app, em vez de mandar vazio.
+        descricao: item.descricao || (item.documento ? `Doc: ${item.documento}` : null),
         doc: item.documento || `GP-${String(item.id).slice(0, 8)}`,
         emissao: item.competencia || item.data_vencimento,
         conta_financeira: item.conta_pagamento || null,
@@ -535,10 +537,11 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   // Aplica Categoria e/ou Competência a vários lançamentos de uma vez —
   // pensado pro caso do DDA importado sem categoria, que bloqueava o
   // envio pro Contas a Pagar item por item.
-  const handleConfirmarEdicaoEmMassa = async (dados: { categoria?: string; competencia?: string }) => {
+  const handleConfirmarEdicaoEmMassa = async (dados: { categoria?: string; competencia?: string; contaPagamento?: string }) => {
     const payload: Record<string, string> = {}
     if (dados.categoria) payload.categoria = dados.categoria
     if (dados.competencia) payload.competencia = dados.competencia
+    if (dados.contaPagamento) payload.conta_pagamento = dados.contaPagamento
     if (Object.keys(payload).length === 0) return
 
     const ids = itensEdicaoMassa.map(i => i.id)
@@ -591,6 +594,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             documento: itemEditando.documento,
             categoria: itemEditando.categoria,
             descricao: itemEditando.descricao,
+            conta_pagamento: itemEditando.conta_pagamento,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
             competencia: itemEditando.competencia || null,
@@ -1064,23 +1068,29 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <input type="text" value={itemEditando.documento || ''} onChange={e => setItemEditando({ ...itemEditando, documento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Nº do documento" />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
-                    {editandoCategoriaEdicao ? (
-                      <SelectorCategoria
-                        valorInicial={itemEditando.categoria || ''}
-                        onSelect={nome => { setItemEditando({ ...itemEditando, categoria: nome }); setEditandoCategoriaEdicao(false) }}
-                        onCancel={() => setEditandoCategoriaEdicao(false)}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditandoCategoriaEdicao(true)}
-                        className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
-                      >
-                        {itemEditando.categoria || <span className="text-dark-500">Clique para buscar...</span>}
-                      </button>
-                    )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Categoria <span className="text-rose-400">*</span></label>
+                      {editandoCategoriaEdicao ? (
+                        <SelectorCategoria
+                          valorInicial={itemEditando.categoria || ''}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, categoria: nome }); setEditandoCategoriaEdicao(false) }}
+                          onCancel={() => setEditandoCategoriaEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoCategoriaEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                        >
+                          {itemEditando.categoria || <span className="text-dark-500">Clique para buscar...</span>}
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
+                      <input type="text" value={itemEditando.conta_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, conta_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Banco Itaú" />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>

@@ -8,7 +8,7 @@ interface ModalEdicaoEmMassaProps {
   open: boolean
   onClose: () => void
   itens: any[]
-  onConfirmar: (dados: { categoria?: string; competencia?: string }) => void
+  onConfirmar: (dados: { categoria?: string; competencia?: string; contaPagamento?: string }) => void
   salvando: boolean
 }
 
@@ -22,22 +22,28 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, onConfirmar, 
   const [categoria, setCategoria] = useState('')
   const [editandoCategoria, setEditandoCategoria] = useState(false)
   const [competencia, setCompetencia] = useState('')
+  const [contaPagamento, setContaPagamento] = useState('')
 
   useEffect(() => {
     if (open) {
       setCategoria('')
       setEditandoCategoria(false)
       setCompetencia('')
+      setContaPagamento('')
     }
   }, [open])
 
   if (!open) return null
 
-  const podeConfirmar = !!(categoria || competencia)
+  const podeConfirmar = !!(categoria || competencia || contaPagamento)
 
   const handleConfirmar = () => {
     if (!podeConfirmar) return
-    onConfirmar({ categoria: categoria || undefined, competencia: competencia || undefined })
+    onConfirmar({
+      categoria: categoria || undefined,
+      competencia: competencia || undefined,
+      contaPagamento: contaPagamento || undefined,
+    })
   }
 
   return (
@@ -86,6 +92,17 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, onConfirmar, 
               type="date"
               value={competencia}
               onChange={e => setCompetencia(e.target.value)}
+              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-dark-400 uppercase">Conta de Pagamento</label>
+            <input
+              type="text"
+              value={contaPagamento}
+              onChange={e => setContaPagamento(e.target.value)}
+              placeholder="Ex: Banco Itaú"
               className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
             />
           </div>
