@@ -106,11 +106,11 @@ export default function GrupoDetalhe() {
             }),
           ]
 
-          return { nome: loja.nome, pagamentos }
+          return { nome: loja.nome, pagamentos, saldoInicial: Number(loja.saldo_caixa || 0) }
         })
       )
 
-      exportarRelatorioGeralXlsx(grupo.nome, lojasRelatorio)
+      await exportarRelatorioGeralXlsx(grupo.nome, lojasRelatorio)
       toast.success('Relatório exportado!', { id: 'export-geral' })
     } catch (err: any) {
       toast.error(err.message || 'Erro ao gerar relatório', { id: 'export-geral' })

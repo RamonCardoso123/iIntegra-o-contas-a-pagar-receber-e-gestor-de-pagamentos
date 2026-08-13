@@ -46,6 +46,49 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
 
+  function formatarNumeroBr(n: number) {
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  function parseNumeroBr(s: string): number {
+    if (!s) return 0
+    const negativo = s.trim().startsWith('-')
+    const semMilhar = s.replace(/\./g, '').replace(/[^\d,]/g, '')
+    const comPonto = semMilhar.replace(',', '.')
+    const n = parseFloat(comPonto)
+    if (isNaN(n)) return 0
+    return negativo ? -Math.abs(n) : n
+  }
+
+  const [saldoCaixa, setSaldoCaixa] = useState<number>(Number(empresa.saldo_caixa) || 0)
+  const [saldoCaixaInput, setSaldoCaixaInput] = useState<string>(formatarNumeroBr(Number(empresa.saldo_caixa) || 0))
+  const [salvandoSaldo, setSalvandoSaldo] = useState(false)
+
+  useEffect(() => {
+    const v = Number(empresa.saldo_caixa) || 0
+    setSaldoCaixa(v)
+    setSaldoCaixaInput(formatarNumeroBr(v))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresa.id, empresa.saldo_caixa])
+
+  async function handleSalvarSaldoCaixa() {
+    const novoValor = parseNumeroBr(saldoCaixaInput)
+    setSaldoCaixaInput(formatarNumeroBr(novoValor))
+    if (novoValor === saldoCaixa) return
+    setSalvandoSaldo(true)
+    try {
+      const { error } = await supabase.from('empresas').update({ saldo_caixa: novoValor }).eq('id', empresa.id)
+      if (error) throw error
+      setSaldoCaixa(novoValor)
+      toast.success('Saldo em caixa atualizado!')
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar saldo em caixa')
+      setSaldoCaixaInput(formatarNumeroBr(saldoCaixa))
+    } finally {
+      setSalvandoSaldo(false)
+    }
+  }
+
   useEffect(() => {
     carregarPagamentos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,12 +159,11 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   }
 
   function labelPeriodoAtivo() {
-    if (periodoAtivo === 'personalizado') {
-      return dataInicio === dataFim
-        ? dataInicio.split('-').reverse().join('/')
-        : `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`
-    }
-    return OPCOES_PERIODO.find(o => o.key === periodoAtivo)?.label || 'Selecionar período'
+    // Sempre mostra a data efetiva no botão (ex: "13/08/2026"), não o
+    // nome do preset — clicar em "Hoje" deve trocar a escrita pela data.
+    return dataInicio === dataFim
+      ? dataInicio.split('-').reverse().join('/')
+      : `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`
   }
 
   async function carregarPagamentos() {
@@ -265,7 +307,6 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   // soma no Entradas.
   const totalDespesas = pagamentos.filter(p => p.origem !== 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
   const totalEntradas = pagamentos.filter(p => p.origem === 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
-  const saldoCaixa = 0.00
   const saldoFinalEstimado = saldoCaixa + totalEntradas - totalDespesas
 
   const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
@@ -451,9 +492,21 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
 
         <div className="text-right border-l border-dark-700 pl-6">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo em Caixa</p>
-          <div className="flex items-baseline gap-1">
+          <div className="flex items-baseline gap-1 justify-end">
             <span className="text-dark-500 font-bold text-sm">R$</span>
-            <span className="text-3xl font-bold text-white">0,00</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={saldoCaixaInput}
+              disabled={salvandoSaldo}
+              onChange={e => setSaldoCaixaInput(e.target.value)}
+              onFocus={e => e.target.select()}
+              onBlur={handleSalvarSaldoCaixa}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              placeholder="0,00"
+              title="Digite o saldo real da conta desta loja"
+              className="text-3xl font-bold text-white bg-transparent text-right w-32 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
+            />
           </div>
         </div>
       </div>
@@ -753,7 +806,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
         </div>
         <div className="md:ml-auto text-right">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo Final Estimado</p>
-          <p className="text-2xl font-black text-emerald-400">
+          <p className={`text-2xl font-black ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
           </p>
         </div>

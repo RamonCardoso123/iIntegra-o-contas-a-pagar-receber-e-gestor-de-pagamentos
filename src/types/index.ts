@@ -25,6 +25,8 @@ export interface Empresa {
   nome_fantasia?: string | null
   /** Grupo (Gestão de Pagamentos) ao qual esta loja pertence, se houver */
   grupo_id?: string | null
+  /** Saldo em caixa desta loja (valor real informado manualmente pelo operador) */
+  saldo_caixa?: number | null
 }
 
 export interface Grupo {
