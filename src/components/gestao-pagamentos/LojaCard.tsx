@@ -299,7 +299,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   // soma no Entradas.
   const totalDespesas = pagamentos.filter(p => p.origem !== 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
   const totalEntradas = pagamentos.filter(p => p.origem === 'Transferência Recebida').reduce((acc, curr) => acc + Number(curr.valor), 0)
-  const saldoFinalEstimado = saldoCaixa + totalEntradas - totalDespesas
+  // Usa o valor que está sendo digitado (saldoCaixaPendente), não só o
+  // último salvo, pra o Saldo Final Estimado somar em tempo real
+  // enquanto o usuário digita — sem precisar clicar fora do campo.
+  const saldoFinalEstimado = saldoCaixaPendente + totalEntradas - totalDespesas
 
   const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
   const pagamentosFolha = pagamentos.filter(p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento')
@@ -326,13 +329,25 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     if (!confirm(`Excluir ${ids.length} lançamento(s)?`)) return
     toast.loading('Excluindo...', { id: `delete_lote-${empresa.id}` })
     try {
+      // Se algum dos itens selecionados for uma ponta de Transferência,
+      // exclui a outra ponta (na loja destino/origem) junto, senão fica
+      // um lançamento "fantasma" que não sai nunca mais sozinho.
+      const transferenciaIds = ids
+        .map(id => pagamentos.find(p => p.id === id)?.transferencia_id)
+        .filter((v): v is string => Boolean(v))
+
       await supabase.from('pagamentos_dda').delete().in('id', ids)
       await supabase.from('agendamentos').delete().in('id', ids)
+      if (transferenciaIds.length > 0) {
+        await supabase.from('agendamentos').delete().in('transferencia_id', transferenciaIds)
+      }
+
       toast.success('Excluídos com sucesso', { id: `delete_lote-${empresa.id}` })
       setSelecionados([])
       carregarPagamentos()
       setModalDetalhesDda(false)
       setModalDetalhesFolha(false)
+      if (transferenciaIds.length > 0) onTransferenciaGlobal?.()
     } catch (e) {
       toast.error('Erro ao excluir', { id: `delete_lote-${empresa.id}` })
     }
@@ -394,9 +409,17 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     if (!confirm('Deseja excluir este lançamento?')) return
     const tabela = origem === 'DDA' ? 'pagamentos_dda' : 'agendamentos'
     try {
-      await supabase.from(tabela).delete().eq('id', id)
+      // Se for uma ponta de Transferência, exclui a outra ponta junto
+      // (na loja de origem ou destino), senão ela fica "fantasma" lá.
+      const transferenciaId = pagamentos.find(p => p.id === id)?.transferencia_id
+      if (transferenciaId) {
+        await supabase.from('agendamentos').delete().eq('transferencia_id', transferenciaId)
+      } else {
+        await supabase.from(tabela).delete().eq('id', id)
+      }
       toast.success('Excluído!')
       carregarPagamentos()
+      if (transferenciaId) onTransferenciaGlobal?.()
     } catch (e) {
       toast.error('Erro ao excluir')
     }

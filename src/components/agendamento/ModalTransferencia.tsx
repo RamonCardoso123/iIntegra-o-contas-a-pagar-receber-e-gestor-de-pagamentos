@@ -75,6 +75,9 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
       const empresaOrigem = empresas.find(e => e.id === origem)
       const empresaDestino = empresas.find(e => e.id === destino)
       const valorNumerico = valor
+      // ID comum às duas pontas da transferência — usado pra excluir as
+      // duas de uma vez se o usuário apagar qualquer uma delas.
+      const transferenciaId = crypto.randomUUID()
 
       // Cria a transferência como um agendamento com o tipo Transferência
       // (saída de caixa na loja de origem)
@@ -85,7 +88,8 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
         data_vencimento: dataTransferencia,
         valor: valorNumerico,
         categoria: 'Transferência',
-        tipo: 'Transferência'
+        tipo: 'Transferência',
+        transferencia_id: transferenciaId
       })
 
       if (error) throw error
@@ -100,7 +104,8 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
         data_vencimento: dataTransferencia,
         valor: valorNumerico,
         categoria: 'Transferência',
-        tipo: 'Transferência Recebida'
+        tipo: 'Transferência Recebida',
+        transferencia_id: transferenciaId
       })
 
       if (erroDestino) {
