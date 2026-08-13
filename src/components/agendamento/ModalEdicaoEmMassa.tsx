@@ -3,26 +3,31 @@
 import { useEffect, useState } from 'react'
 import { X, Tags, CheckCircle2, Loader2 } from 'lucide-react'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
+import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 
 interface ModalEdicaoEmMassaProps {
   open: boolean
   onClose: () => void
   itens: any[]
+  contas: ContaFinanceiraOpcao[]
   onConfirmar: (dados: { categoria?: string; competencia?: string; contaPagamento?: string }) => void
   salvando: boolean
 }
 
 /**
- * Preenche Categoria e/ou Competência de vários lançamentos (DDA ou
- * Folha) de uma vez só — útil quando o DDA foi importado sem categoria e
- * bloqueia o envio pro Contas a Pagar. Só aplica os campos que forem
- * preenchidos aqui; o que ficar em branco não é alterado nos itens.
+ * Preenche Categoria, Competência e/ou Conta de Pagamento de vários
+ * lançamentos (DDA ou Folha) de uma vez só — útil quando o DDA foi
+ * importado sem categoria e bloqueia o envio pro Contas a Pagar. Categoria
+ * e Conta vêm da lista real do Conta Azul (evita erro de digitação que
+ * faria não bater na hora de enviar). Só aplica os campos preenchidos
+ * aqui; o que ficar em branco não é alterado nos itens.
  */
-export default function ModalEdicaoEmMassa({ open, onClose, itens, onConfirmar, salvando }: ModalEdicaoEmMassaProps) {
+export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onConfirmar, salvando }: ModalEdicaoEmMassaProps) {
   const [categoria, setCategoria] = useState('')
   const [editandoCategoria, setEditandoCategoria] = useState(false)
   const [competencia, setCompetencia] = useState('')
   const [contaPagamento, setContaPagamento] = useState('')
+  const [editandoConta, setEditandoConta] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -30,6 +35,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, onConfirmar, 
       setEditandoCategoria(false)
       setCompetencia('')
       setContaPagamento('')
+      setEditandoConta(false)
     }
   }, [open])
 
@@ -98,13 +104,22 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, onConfirmar, 
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-dark-400 uppercase">Conta de Pagamento</label>
-            <input
-              type="text"
-              value={contaPagamento}
-              onChange={e => setContaPagamento(e.target.value)}
-              placeholder="Ex: Banco Itaú"
-              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
-            />
+            {editandoConta ? (
+              <SelectorContaFinanceira
+                valorInicial={contaPagamento}
+                contas={contas}
+                onSelect={nome => { setContaPagamento(nome); setEditandoConta(false) }}
+                onCancel={() => setEditandoConta(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditandoConta(true)}
+                className="w-full text-left bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm hover:border-brand-500 transition-all truncate"
+              >
+                {contaPagamento || <span className="text-dark-500">Clique para escolher...</span>}
+              </button>
+            )}
           </div>
 
           <p className="text-dark-500 text-xs">

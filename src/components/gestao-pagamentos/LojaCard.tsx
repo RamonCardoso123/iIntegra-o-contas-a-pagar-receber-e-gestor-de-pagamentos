@@ -15,6 +15,7 @@ import ModalTransferirLancamento from '@/components/agendamento/ModalTransferirL
 import ModalEdicaoEmMassa from '@/components/agendamento/ModalEdicaoEmMassa'
 import InputMoeda from '@/components/ui/InputMoeda'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
+import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
 
@@ -57,6 +58,23 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
+  const [editandoContaEdicao, setEditandoContaEdicao] = useState(false)
+  const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceiraOpcao[]>([])
+
+  // Lista de contas do Conta Azul pra buscar por nome (evita digitar
+  // errado e não bater na hora de enviar) — usada na edição individual e
+  // na edição em massa de DDA/Folha.
+  useEffect(() => {
+    fetch(`/api/conta-azul/contas-financeiras?empresa_id=${empresa.id}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (data?.contas && Array.isArray(data.contas)) setContasFinanceiras(data.contas)
+      })
+      .catch(() => {
+        // Sem conexão com o Conta Azul (ou token expirado) — os campos
+        // continuam funcionando, só sem sugestões automáticas.
+      })
+  }, [empresa.id])
 
   // Transferir lançamento(s) de DDA/Folha pra outra loja (o item sai da
   // origem e passa a pertencer ao destino) — diferente da Transferência
@@ -890,7 +908,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                           </a>
                         )}
                         <button
-                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
+                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
                           className="text-dark-400 hover:text-white transition-colors p-1"
                         >
                           <Edit2 size={16} />
@@ -1004,7 +1022,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
@@ -1020,7 +1038,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onDelete={handleExcluirEmLote}
         onAgendar={handleAgendarEmLote}
         onVoltarAberto={handleVoltarAbertoEmLote}
-        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
+        onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
         onTransferirItem={(item) => abrirModalTransferir([item])}
@@ -1032,6 +1050,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         open={modalEdicaoMassaAberto}
         onClose={() => setModalEdicaoMassaAberto(false)}
         itens={itensEdicaoMassa}
+        contas={contasFinanceiras}
         onConfirmar={handleConfirmarEdicaoEmMassa}
         salvando={salvandoEdicaoMassa}
       />
@@ -1089,7 +1108,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
-                      <input type="text" value={itemEditando.conta_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, conta_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Banco Itaú" />
+                      {editandoContaEdicao ? (
+                        <SelectorContaFinanceira
+                          valorInicial={itemEditando.conta_pagamento || ''}
+                          contas={contasFinanceiras}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, conta_pagamento: nome }); setEditandoContaEdicao(false) }}
+                          onCancel={() => setEditandoContaEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoContaEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                        >
+                          {itemEditando.conta_pagamento || <span className="text-dark-500">Clique para buscar...</span>}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -1147,7 +1181,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Conta de Pagamento</label>
-                      <input type="text" value={itemEditando.conta_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, conta_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ex: Banco Itaú" />
+                      {editandoContaEdicao ? (
+                        <SelectorContaFinanceira
+                          valorInicial={itemEditando.conta_pagamento || ''}
+                          contas={contasFinanceiras}
+                          onSelect={nome => { setItemEditando({ ...itemEditando, conta_pagamento: nome }); setEditandoContaEdicao(false) }}
+                          onCancel={() => setEditandoContaEdicao(false)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditandoContaEdicao(true)}
+                          className="w-full text-left bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm hover:border-blue-500 transition-all truncate"
+                        >
+                          {itemEditando.conta_pagamento || <span className="text-dark-500">Clique para buscar...</span>}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div>
