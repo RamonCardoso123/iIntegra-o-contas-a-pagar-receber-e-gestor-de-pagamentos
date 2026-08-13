@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
 import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
+import ModalTransferirLancamento from '@/components/agendamento/ModalTransferirLancamento'
 import InputMoeda from '@/components/ui/InputMoeda'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
 import { useEmpresa } from '@/contexts/EmpresaContext'
@@ -55,6 +56,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
   const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
+
+  // Transferir lançamento(s) de DDA/Folha pra outra loja (o item sai da
+  // origem e passa a pertencer ao destino) — diferente da Transferência
+  // de saldo, aqui é o boleto/funcionário que estava na loja errada.
+  const [modalTransferirAberto, setModalTransferirAberto] = useState(false)
+  const [itensParaTransferir, setItensParaTransferir] = useState<any[]>([])
+  const [transferindoLancamento, setTransferindoLancamento] = useState(false)
 
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
@@ -472,6 +480,40 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     }
   }
 
+  function abrirModalTransferir(itens: any[]) {
+    if (itens.length === 0) return
+    setItensParaTransferir(itens)
+    setModalTransferirAberto(true)
+  }
+
+  // Move de verdade o(s) lançamento(s) pra outra loja (troca o
+  // empresa_id) — usado quando um boleto do DDA ou um funcionário da
+  // Folha caiu na loja errada. Não sobra nada na loja de origem.
+  const handleConfirmarTransferirLancamentos = async (destinoId: string) => {
+    const ids = itensParaTransferir.map(i => i.id)
+    if (ids.length === 0) return
+    setTransferindoLancamento(true)
+    try {
+      await supabase.from('pagamentos_dda').update({ empresa_id: destinoId }).in('id', ids)
+      await supabase.from('agendamentos').update({ empresa_id: destinoId }).in('id', ids)
+
+      toast.success(`${ids.length} lançamento(s) transferido(s) para a outra loja!`)
+      setModalTransferirAberto(false)
+      setItensParaTransferir([])
+      setModalDetalhesDda(false)
+      setModalDetalhesFolha(false)
+      carregarPagamentos()
+      // A loja de destino também precisa recarregar pra mostrar os itens
+      // que acabou de receber — reaproveita o mesmo mecanismo global já
+      // usado pela Transferência de saldo.
+      onTransferenciaGlobal?.()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao transferir lançamento(s)')
+    } finally {
+      setTransferindoLancamento(false)
+    }
+  }
+
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemEditando) return
@@ -614,8 +656,11 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               onChange={setSaldoCaixaPendente}
               disabled={salvandoSaldo}
               onBlur={handleSalvarSaldoCaixa}
-              title="Digite o saldo real da conta desta loja"
-              className="text-xl font-bold text-white bg-transparent text-right w-56 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
+              permiteNegativo
+              title="Digite o saldo real da conta desta loja (pode ser negativo)"
+              className={`text-xl font-bold bg-transparent text-right w-56 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50 ${
+                saldoCaixaPendente < 0 ? 'text-rose-400' : 'text-emerald-400'
+              }`}
             />
           </div>
         </div>
@@ -908,6 +953,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
+        onTransferirItem={(item) => abrirModalTransferir([item])}
+        onTransferirLote={(itens) => abrirModalTransferir(itens)}
       />
 
       <ModalDetalhesLancamentos
@@ -921,6 +968,18 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         onEditarItem={(item) => { setItemEditando(item); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); }}
         onToggleStatus={toggleStatus}
         onEnviarContasAPagar={handleEnviarParaContasAPagar}
+        onTransferirItem={(item) => abrirModalTransferir([item])}
+        onTransferirLote={(itens) => abrirModalTransferir(itens)}
+      />
+
+      <ModalTransferirLancamento
+        open={modalTransferirAberto}
+        onClose={() => setModalTransferirAberto(false)}
+        itens={itensParaTransferir}
+        empresaAtual={empresa}
+        empresasDestino={lojasDoGrupo.filter(e => e.id !== empresa.id)}
+        onConfirmar={handleConfirmarTransferirLancamentos}
+        transferindo={transferindoLancamento}
       />
 
       {modalEdicaoAberto && itemEditando && (

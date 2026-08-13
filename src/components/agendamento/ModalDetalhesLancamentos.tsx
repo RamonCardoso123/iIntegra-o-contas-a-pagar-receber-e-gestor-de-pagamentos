@@ -13,6 +13,9 @@ interface ModalDetalhesProps {
   onVoltarAberto: (ids: string[]) => void
   onEditarItem?: (item: any) => void
   onTransferirItem?: (item: any) => void
+  /** Transfere 1 ou mais lançamentos selecionados pra outra loja (o
+   * lançamento sai daqui e passa a pertencer à loja de destino). */
+  onTransferirLote?: (itens: any[]) => void
   onToggleStatus?: (item: any) => void
   /** Envia 1 ou mais lançamentos pro Contas a Pagar (fila de importação),
    * sem alterar nada aqui na Gestão de Pagamentos. */
@@ -29,6 +32,7 @@ export default function ModalDetalhesLancamentos({
   onVoltarAberto,
   onEditarItem,
   onTransferirItem,
+  onTransferirLote,
   onToggleStatus,
   onEnviarContasAPagar
 }: ModalDetalhesProps) {
@@ -117,6 +121,14 @@ export default function ModalDetalhesLancamentos({
                          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
                        >
                          <Send size={14} /> Enviar p/ Contas a Pagar
+                       </button>
+                     )}
+                     {onTransferirLote && (
+                       <button
+                         onClick={() => { onTransferirLote(lancamentos.filter(l => selecionados.includes(l.id))); setSelecionados([]) }}
+                         className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5"
+                       >
+                         <ArrowRightLeft size={14} /> Transferir p/ Loja
                        </button>
                      )}
                   </div>
