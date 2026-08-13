@@ -69,7 +69,7 @@ export default function ModalDetalhesLancamentos({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-[#11141c] border border-dark-700 rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col h-[85vh]">
+      <div className="bg-[#11141c] border border-dark-700 rounded-2xl w-[97vw] max-w-[1600px] shadow-2xl flex flex-col h-[90vh]">
         
         {/* Header */}
         <div className="flex flex-col p-5 border-b border-dark-700 gap-4 shrink-0">
@@ -186,10 +186,10 @@ export default function ModalDetalhesLancamentos({
                            <td className="px-6 py-4 font-semibold text-white text-sm">
                               {nome}
                            </td>
-                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
+                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[220px] truncate">
                               {pag.categoria || '—'}
                            </td>
-                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[200px] truncate" title={descFinal}>
+                           <td className="px-6 py-4 text-sm text-dark-300 max-w-[320px] truncate" title={descFinal}>
                               {descFinal}
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
