@@ -8,6 +8,7 @@ import { Empresa } from '@/types'
 import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import SelectorCategoria from '@/components/upload/SelectorCategoria'
 import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/upload/SelectorContaFinanceira'
+import InputMoeda from '@/components/ui/InputMoeda'
 
 interface ModalAgendamentoProps {
   open: boolean
@@ -21,7 +22,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [descricao, setDescricao] = useState('')
   const [dataVencimento, setDataVencimento] = useState('')
   const [dataCompetencia, setDataCompetencia] = useState('')
-  const [valor, setValor] = useState('')
+  const [valor, setValor] = useState(0)
   const [categoria, setCategoria] = useState('')
   const [contaPagamento, setContaPagamento] = useState('')
   const [tipo, setTipo] = useState('PIX')
@@ -62,7 +63,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
     setDescricao('')
     setDataVencimento('')
     setDataCompetencia('')
-    setValor('')
+    setValor(0)
     setCategoria('')
     setContaPagamento('')
     setTipo('PIX')
@@ -101,7 +102,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       const dados = json.dados
       if (dados.fornecedor) setFornecedor(dados.fornecedor)
       if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
-      if (dados.valor) setValor(String(dados.valor))
+      if (dados.valor) setValor(Number(dados.valor) || 0)
       if (dados.categoria) setCategoria(dados.categoria)
       if (dados.tipo) setTipo(dados.tipo)
       if (dados.chave_pix) setChavePix(dados.chave_pix)
@@ -165,7 +166,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         descricao,
         data_vencimento: dataVencimento,
         competencia: dataCompetencia,
-        valor: parseFloat(valor.replace(',', '.')),
+        valor,
         categoria,
         conta_pagamento: contaPagamento,
         tipo,
@@ -288,7 +289,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Valor (R$) <span className="text-rose-400">*</span></label>
-              <input type="number" step="0.01" value={valor} onChange={e => setValor(e.target.value)} placeholder="0.00" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <InputMoeda value={valor} onChange={setValor} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           </div>
 

@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
 import ModalTransferencia from '@/components/agendamento/ModalTransferencia'
 import ModalDetalhesLancamentos from '@/components/agendamento/ModalDetalhesLancamentos'
+import InputMoeda from '@/components/ui/InputMoeda'
 import { Empresa } from '@/types'
 
 interface LojaCardProps {
@@ -46,44 +47,28 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
   const [menuPeriodoAberto, setMenuPeriodoAberto] = useState(false)
 
-  function formatarNumeroBr(n: number) {
-    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
-
-  function parseNumeroBr(s: string): number {
-    if (!s) return 0
-    const negativo = s.trim().startsWith('-')
-    const semMilhar = s.replace(/\./g, '').replace(/[^\d,]/g, '')
-    const comPonto = semMilhar.replace(',', '.')
-    const n = parseFloat(comPonto)
-    if (isNaN(n)) return 0
-    return negativo ? -Math.abs(n) : n
-  }
-
   const [saldoCaixa, setSaldoCaixa] = useState<number>(Number(empresa.saldo_caixa) || 0)
-  const [saldoCaixaInput, setSaldoCaixaInput] = useState<string>(formatarNumeroBr(Number(empresa.saldo_caixa) || 0))
+  const [saldoCaixaPendente, setSaldoCaixaPendente] = useState<number>(Number(empresa.saldo_caixa) || 0)
   const [salvandoSaldo, setSalvandoSaldo] = useState(false)
 
   useEffect(() => {
     const v = Number(empresa.saldo_caixa) || 0
     setSaldoCaixa(v)
-    setSaldoCaixaInput(formatarNumeroBr(v))
+    setSaldoCaixaPendente(v)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresa.id, empresa.saldo_caixa])
 
   async function handleSalvarSaldoCaixa() {
-    const novoValor = parseNumeroBr(saldoCaixaInput)
-    setSaldoCaixaInput(formatarNumeroBr(novoValor))
-    if (novoValor === saldoCaixa) return
+    if (saldoCaixaPendente === saldoCaixa) return
     setSalvandoSaldo(true)
     try {
-      const { error } = await supabase.from('empresas').update({ saldo_caixa: novoValor }).eq('id', empresa.id)
+      const { error } = await supabase.from('empresas').update({ saldo_caixa: saldoCaixaPendente }).eq('id', empresa.id)
       if (error) throw error
-      setSaldoCaixa(novoValor)
+      setSaldoCaixa(saldoCaixaPendente)
       toast.success('Saldo em caixa atualizado!')
     } catch (err: any) {
       toast.error(err.message || 'Erro ao salvar saldo em caixa')
-      setSaldoCaixaInput(formatarNumeroBr(saldoCaixa))
+      setSaldoCaixaPendente(saldoCaixa)
     } finally {
       setSalvandoSaldo(false)
     }
@@ -420,7 +405,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
       toast.error('Preencha a Categoria.')
       return
     }
-    const valorNumerico = parseFloat(String(itemEditando.valor).replace(',', '.'))
+    const valorNumerico = Number(itemEditando.valor) || 0
     if (ehDda && (!itemEditando.beneficiario || !itemEditando.data_vencimento || !valorNumerico)) {
       toast.error('Preencha Beneficiário, Vencimento e Valor.')
       return
@@ -494,16 +479,11 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo em Caixa</p>
           <div className="flex items-baseline gap-1 justify-end">
             <span className="text-dark-500 font-bold text-sm">R$</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={saldoCaixaInput}
+            <InputMoeda
+              value={saldoCaixaPendente}
+              onChange={setSaldoCaixaPendente}
               disabled={salvandoSaldo}
-              onChange={e => setSaldoCaixaInput(e.target.value)}
-              onFocus={e => e.target.select()}
               onBlur={handleSalvarSaldoCaixa}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-              placeholder="0,00"
               title="Digite o saldo real da conta desta loja"
               className="text-3xl font-bold text-white bg-transparent text-right w-32 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
             />
@@ -923,7 +903,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
-                      <input type="number" step="0.01" value={itemEditando.valor ?? ''} onChange={e => setItemEditando({ ...itemEditando, valor: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
@@ -977,7 +957,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
-                      <input type="number" step="0.01" value={itemEditando.valor ?? ''} onChange={e => setItemEditando({ ...itemEditando, valor: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                      <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>

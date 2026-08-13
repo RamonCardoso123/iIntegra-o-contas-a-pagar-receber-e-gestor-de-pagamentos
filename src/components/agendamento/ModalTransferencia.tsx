@@ -5,6 +5,7 @@ import { X, ArrowRightLeft, CheckCircle2, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Empresa } from '@/types'
+import InputMoeda from '@/components/ui/InputMoeda'
 
 interface ModalTransferenciaProps {
   open: boolean
@@ -18,7 +19,7 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
   const [origem, setOrigem] = useState(empresaAtiva?.id || '')
   const [destino, setDestino] = useState('')
   const [dataTransferencia, setDataTransferencia] = useState('')
-  const [valor, setValor] = useState('')
+  const [valor, setValor] = useState(0)
   const [descricao, setDescricao] = useState('')
   const [salvando, setSalvando] = useState(false)
   const supabase = createClient()
@@ -40,7 +41,7 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
     try {
       const empresaOrigem = empresas.find(e => e.id === origem)
       const empresaDestino = empresas.find(e => e.id === destino)
-      const valorNumerico = parseFloat(valor.replace(',', '.'))
+      const valorNumerico = valor
 
       // Cria a transferência como um agendamento com o tipo Transferência
       // (saída de caixa na loja de origem)
@@ -132,7 +133,7 @@ export default function ModalTransferencia({ open, onClose, empresaAtiva, empres
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Valor (R$) <span className="text-rose-400">*</span></label>
-              <input type="number" step="0.01" value={valor} onChange={e => setValor(e.target.value)} placeholder="0.00" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+              <InputMoeda value={valor} onChange={setValor} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           </div>
 
