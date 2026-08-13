@@ -384,7 +384,7 @@ function EmpresasPageContent() {
     nome: '', 
     cnpj: '', 
     email_login: '', 
-    tipo_empresa: 'ambos',
+    tipo_empresa: 'financeiro',
     datacar_token: '',
     datacar_cod_emp: '',
     datacar_id_operador: '',
@@ -524,7 +524,7 @@ function EmpresasPageContent() {
         toast.success('Empresa criada com sucesso!')
       }
 
-      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'financeiro', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
       setDadosCnpj(null)
       setEditingId(null)
       setShowForm(false)
@@ -552,7 +552,7 @@ function EmpresasPageContent() {
           nome: 'Aguardando Conexão...',
           cnpj: '00000000000000',
           created_by: user.id,
-          tipo_empresa: 'ambos',
+          tipo_empresa: 'financeiro',
         })
 
       if (errEmp) throw errEmp
@@ -568,7 +568,7 @@ function EmpresasPageContent() {
       if (errVinc) throw errVinc
 
       toast.success('Card em branco criado! Copie o link e envie ao cliente.')
-      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+      setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'financeiro', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
       setDadosCnpj(null)
       setEditingId(null)
       setShowForm(false)
@@ -615,7 +615,7 @@ function EmpresasPageContent() {
       nome: empresa.nome || '',
       cnpj: empresa.cnpj || '',
       email_login: empresa.email_login || '',
-      tipo_empresa: empresa.tipo_empresa || 'ambos',
+      tipo_empresa: empresa.tipo_empresa || 'financeiro',
       datacar_token: empresa.datacar_token || '',
       datacar_cod_emp: empresa.datacar_cod_emp || '',
       datacar_id_operador: empresa.datacar_id_operador || '',
@@ -640,7 +640,7 @@ function EmpresasPageContent() {
           type="button"
           onClick={() => {
             setEditingId(null)
-            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+            setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'financeiro', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
             setDadosCnpj(null)
             setShowForm(!showForm)
           }}
@@ -660,7 +660,7 @@ function EmpresasPageContent() {
             <button
               onClick={() => {
                 setEditingId(null)
-                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'ambos', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
+                setForm({ nome: '', cnpj: '', email_login: '', tipo_empresa: 'financeiro', datacar_token: '', datacar_cod_emp: '', datacar_id_operador: '', razao_social: '', nome_fantasia: '' })
                 setDadosCnpj(null)
                 setShowForm(false)
               }}
@@ -768,31 +768,16 @@ function EmpresasPageContent() {
                 </div>
               )}
 
-              {/* NOME POPULAR & TIPO */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-dark-300 font-medium ml-1">Nome Popular (Como você chama)</label>
-                  <input
-                    value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                    placeholder="Ex: Auto Peças Silva"
-                    required
-                    className="w-full bg-dark-900/50 border border-dark-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-dark-300 font-medium ml-1">Tipo de Integração</label>
-                  <select
-                    value={form.tipo_empresa}
-                    onChange={(e) => setForm({ ...form, tipo_empresa: e.target.value as any })}
-                    className="w-full bg-dark-900/50 border border-dark-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all appearance-none shadow-inner"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                  >
-                    <option value="ambos">Ambos (Vendas e Financeiro)</option>
-                    <option value="financeiro">Apenas Financeiro</option>
-                    <option value="vendas">Apenas Vendas</option>
-                  </select>
-                </div>
+              {/* NOME POPULAR */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-dark-300 font-medium ml-1">Nome Popular (Como você chama)</label>
+                <input
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  placeholder="Ex: Auto Peças Silva"
+                  required
+                  className="w-full bg-dark-900/50 border border-dark-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all placeholder:text-dark-600 shadow-inner"
+                />
               </div>
             </div>
 

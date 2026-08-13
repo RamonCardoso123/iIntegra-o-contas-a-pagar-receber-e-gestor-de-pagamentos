@@ -455,7 +455,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
     <div className="bg-[#11141c] border border-dark-700 rounded-2xl overflow-hidden shadow-2xl">
 
       <div className="p-6 border-b border-dark-700 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <h2 className="text-2xl font-black text-white uppercase tracking-tight">
             {empresa.nome}
           </h2>
@@ -470,6 +470,61 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
           <button onClick={handleLimparRegistrosDoDia} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
             <Trash2 size={16} />
           </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
+              className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors min-w-[160px] justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Calendar size={14} className="text-dark-400" />
+                {labelPeriodoAtivo()}
+              </span>
+              <ChevronDown size={14} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+
+            {menuPeriodoAberto && (
+              <div className="absolute top-full mt-2 left-0 w-52 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                {OPCOES_PERIODO.map(op => (
+                  <button
+                    key={op.key}
+                    onClick={() => aplicarPeriodo(op.key)}
+                    className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${
+                      periodoAtivo === op.key ? 'bg-blue-600 text-white' : 'text-dark-200 hover:bg-dark-700'
+                    } ${op.key === 'personalizado' ? 'border-t border-dark-700' : ''}`}
+                  >
+                    {op.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {periodoAtivo === 'personalizado' && (
+            <div className="flex items-center gap-3 animate-fade-in">
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={e => {
+                  const novaDataInicio = e.target.value
+                  setDataInicio(novaDataInicio)
+                  if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
+                }}
+                className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+              />
+              <span className="text-dark-500 text-sm">até</span>
+              <input
+                type="date"
+                value={dataFim}
+                min={dataInicio}
+                onChange={e => setDataFim(e.target.value)}
+                className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
+              />
+              <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
+                <Search size={14} /> Filtrar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="text-right border-l border-dark-700 pl-6">
@@ -486,65 +541,6 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
             />
           </div>
         </div>
-      </div>
-
-      {/* Filters Row */}
-      <div className="p-6 border-b border-dark-700 flex items-center gap-4 flex-wrap">
-        <span className="text-xs font-bold text-dark-400 uppercase tracking-wider flex items-center gap-2">
-          <Calendar size={14} /> Vencimento
-        </span>
-
-        <div className="relative">
-          <button
-            onClick={() => setMenuPeriodoAberto(!menuPeriodoAberto)}
-            className="flex items-center gap-2 bg-dark-800 border border-dark-600 hover:bg-dark-700 text-white rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors min-w-[180px] justify-between"
-          >
-            {labelPeriodoAtivo()}
-            <ChevronDown size={14} className={menuPeriodoAberto ? 'rotate-180 transition-transform' : 'transition-transform'} />
-          </button>
-
-          {menuPeriodoAberto && (
-            <div className="absolute top-full mt-2 left-0 w-52 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
-              {OPCOES_PERIODO.map(op => (
-                <button
-                  key={op.key}
-                  onClick={() => aplicarPeriodo(op.key)}
-                  className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${
-                    periodoAtivo === op.key ? 'bg-blue-600 text-white' : 'text-dark-200 hover:bg-dark-700'
-                  } ${op.key === 'personalizado' ? 'border-t border-dark-700' : ''}`}
-                >
-                  {op.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {periodoAtivo === 'personalizado' && (
-          <div className="flex items-center gap-3 animate-fade-in">
-            <input
-              type="date"
-              value={dataInicio}
-              onChange={e => {
-                const novaDataInicio = e.target.value
-                setDataInicio(novaDataInicio)
-                if (dataFim < novaDataInicio) setDataFim(novaDataInicio)
-              }}
-              className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
-            />
-            <span className="text-dark-500 text-sm">até</span>
-            <input
-              type="date"
-              value={dataFim}
-              min={dataInicio}
-              onChange={e => setDataFim(e.target.value)}
-              className="bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-1.5 text-sm outline-none w-36"
-            />
-            <button onClick={carregarPagamentos} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20">
-              <Search size={14} /> Filtrar
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Action Row */}
