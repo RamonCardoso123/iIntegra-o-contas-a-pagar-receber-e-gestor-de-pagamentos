@@ -27,6 +27,17 @@ export interface LojaRelatorio {
 
 const FMT_MOEDA = '"R$"#,##0.00'
 
+// Ordem fixa das linhas na seção DETALHADO — os dados vêm da tabela
+// "agendamentos" (Folha/Agendamento/Transferência misturados na ordem que
+// o banco devolver), então precisa reordenar aqui antes de escrever.
+const ORDEM_TIPO: Record<PagamentoRelatorio['origem'], number> = {
+  'DDA': 0,
+  'Folha': 1,
+  'Agendamento': 2,
+  'Transferência': 3,
+  'Transferência Recebida': 4,
+}
+
 const COR_NAVY = 'FF1F4E78'
 const COR_BRANCO = 'FFFFFFFF'
 const COR_ZEBRA = 'FFF2F2F2'
@@ -119,7 +130,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
       }
       if (colNumber >= 2 && colNumber <= 7) {
         cell.numFmt = FMT_MOEDA
-        cell.alignment = { vertical: 'middle', horizontal: 'right' }
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }
       }
       if (colNumber === 7) {
         cell.font = { color: { argb: r.saldoFinal < 0 ? COR_VERMELHO : COR_VERDE } }
@@ -143,7 +154,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     cell.font = { bold: true }
     if (colNumber >= 2 && colNumber <= 6) {
       cell.numFmt = FMT_MOEDA
-      cell.alignment = { horizontal: 'right' }
+      cell.alignment = { horizontal: 'center' }
     }
   })
 
@@ -174,7 +185,11 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
       cell.fill = fillSolido(COR_NAVY)
     })
 
-    for (const p of loja.pagamentos) {
+    const pagamentosOrdenados = [...loja.pagamentos].sort(
+      (a, b) => (ORDEM_TIPO[a.origem] ?? 99) - (ORDEM_TIPO[b.origem] ?? 99)
+    )
+
+    for (const p of pagamentosOrdenados) {
       const tipoLabel =
         p.origem === 'DDA' ? 'DDA' :
         p.origem === 'Folha' ? 'FOLHA' :
