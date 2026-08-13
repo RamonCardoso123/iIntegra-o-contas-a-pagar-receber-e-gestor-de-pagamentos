@@ -485,7 +485,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
               disabled={salvandoSaldo}
               onBlur={handleSalvarSaldoCaixa}
               title="Digite o saldo real da conta desta loja"
-              className="text-xl font-bold text-white bg-transparent text-right w-28 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
+              className="text-xl font-bold text-white bg-transparent text-right w-56 outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors disabled:opacity-50"
             />
           </div>
         </div>
