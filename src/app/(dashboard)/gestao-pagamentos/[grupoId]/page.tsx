@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  ArrowLeft, FileText, LogOut, Upload, ChevronDown, Plus, Users,
-  AlertCircle, Loader2, Building2, X
+  ArrowLeft, FileText, Upload, ChevronDown, Plus,
+  Loader2, Building2, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LojaCard from '@/components/gestao-pagamentos/LojaCard'
@@ -173,27 +173,6 @@ export default function GrupoDetalhe() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 mr-4">
-            <div className="text-right leading-tight">
-              <p className="text-[10px] text-dark-400 font-bold uppercase tracking-wider">Operador</p>
-              <p className="text-sm text-white font-bold">TESTE</p>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center">
-              <LogOut size={14} className="text-dark-300" />
-            </div>
-          </div>
-
-          <button className="text-dark-400 hover:text-white transition-colors">
-            <AlertCircle size={20} />
-          </button>
-          <button className="text-dark-400 hover:text-white transition-colors">
-            <FileText size={20} />
-          </button>
-
-          <button className="flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-            <Users size={16} className="text-blue-400" /> Colaboradores
-          </button>
-
           <button
             onClick={abrirModalNovaLoja}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-900/20"

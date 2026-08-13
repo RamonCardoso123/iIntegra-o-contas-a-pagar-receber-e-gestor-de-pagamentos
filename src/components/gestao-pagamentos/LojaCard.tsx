@@ -470,9 +470,6 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
           <button onClick={handleLimparRegistrosDoDia} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
             <Trash2 size={16} />
           </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-white hover:bg-dark-700 transition-colors">
-            <Upload size={16} />
-          </button>
         </div>
 
         <div className="text-right border-l border-dark-700 pl-6">
