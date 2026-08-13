@@ -54,7 +54,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const [modalDetalhesDda, setModalDetalhesDda] = useState(false)
   const [modalDetalhesFolha, setModalDetalhesFolha] = useState(false)
-  const [selecionados, setSelecionados] = useState<string[]>([])
   const [editandoCategoriaEdicao, setEditandoCategoriaEdicao] = useState(false)
 
   const [periodoAtivo, setPeriodoAtivo] = useState('hoje')
@@ -194,7 +193,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     setPagamentos(unificados)
-    setSelecionados([])
     setCarregando(false)
   }
 
@@ -353,7 +351,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       }
 
       toast.success('Excluídos com sucesso', { id: `delete_lote-${empresa.id}` })
-      setSelecionados([])
       carregarPagamentos()
       setModalDetalhesDda(false)
       setModalDetalhesFolha(false)
@@ -369,7 +366,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       await supabase.from('pagamentos_dda').update({ status: 'agendado' }).in('id', ids)
       await supabase.from('agendamentos').update({ status: 'agendado' }).in('id', ids)
       toast.success('Status atualizado para Agendado!')
-      setSelecionados([])
       carregarPagamentos()
     } catch (e) {
       toast.error('Erro ao atualizar')
@@ -382,23 +378,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       await supabase.from('pagamentos_dda').update({ status: 'aberto' }).in('id', ids)
       await supabase.from('agendamentos').update({ status: 'aberto' }).in('id', ids)
       toast.success('Status atualizado para Em Aberto!')
-      setSelecionados([])
       carregarPagamentos()
     } catch (e) {
       toast.error('Erro ao atualizar')
     }
-  }
-
-  const toggleSelectAll = () => {
-    if (selecionados.length === pagamentosIndividuais.length) {
-      setSelecionados([])
-    } else {
-      setSelecionados(pagamentosIndividuais.map(p => p.id))
-    }
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelecionados(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
   const toggleStatus = async (item: any) => {
@@ -676,23 +659,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           </button>
         </div>
 
-        {selecionados.length > 0 && (
-          <div className="flex items-center gap-2 animate-fade-in bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-lg">
-            <span className="text-sm text-blue-400 font-bold mr-2">{selecionados.length} selecionado(s)</span>
-            <button onClick={() => handleExcluirEmLote(selecionados)} className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors">
-              Excluir
-            </button>
-            <button onClick={() => handleAgendarEmLote(selecionados)} className="bg-amber-500 hover:bg-amber-600 text-[#0b0e14] px-3 py-1.5 rounded text-xs font-bold transition-colors">
-              Agendar
-            </button>
-            <button
-              onClick={() => handleEnviarParaContasAPagar(pagamentos.filter(p => selecionados.includes(p.id)))}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-1.5"
-            >
-              <Send size={12} /> Enviar p/ Contas a Pagar
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Table */}
@@ -700,14 +666,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#0b0e14] border-b border-dark-700 text-[10px] uppercase font-bold tracking-widest text-dark-400">
-              <th className="px-6 py-4 w-12">
-                <input
-                  type="checkbox"
-                  checked={selecionados.length > 0 && selecionados.length === pagamentosIndividuais.length && pagamentosIndividuais.length > 0}
-                  onChange={toggleSelectAll}
-                  className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer"
-                />
-              </th>
               <th className="px-6 py-4">TIPO</th>
               <th className="px-6 py-4">BENEFICIÁRIO</th>
               <th className="px-6 py-4">CATEGORIA</th>
@@ -721,14 +679,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           <tbody className="divide-y divide-dark-700/50">
             {carregando ? (
               <tr>
-                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm">
                   <RefreshCw className="animate-spin mx-auto mb-3" size={24} />
                   Carregando...
                 </td>
               </tr>
             ) : pagamentos.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
+                <td colSpan={8} className="p-12 text-center text-dark-500 font-semibold text-sm uppercase tracking-wider">
                   Nenhum lançamento ativo para esta loja.
                 </td>
               </tr>
@@ -736,7 +694,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <>
                 {pagamentosDda.length > 0 && (
                   <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
-                    <td className="px-6 py-4"></td>
                     <td className="px-6 py-4">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
                     </td>
@@ -760,7 +717,6 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {pagamentosFolha.length > 0 && (
                   <tr className="bg-dark-800/10 hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
-                    <td className="px-6 py-4"></td>
                     <td className="px-6 py-4">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                     </td>
@@ -783,15 +739,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 )}
 
                 {pagamentosIndividuais.map((pag, idx) => (
-                  <tr key={pag.id || idx} className={`${selecionados.includes(pag.id) ? 'bg-blue-500/10' : 'bg-[#11141c] hover:bg-dark-800/30'} transition-colors border-b border-dark-700/50`}>
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selecionados.includes(pag.id)}
-                        onChange={() => toggleSelect(pag.id)}
-                        className="rounded border-dark-500 bg-dark-800 text-blue-500 focus:ring-blue-500 cursor-pointer w-4 h-4"
-                      />
-                    </td>
+                  <tr key={pag.id || idx} className="bg-[#11141c] hover:bg-dark-800/30 transition-colors border-b border-dark-700/50">
                     <td className="px-6 py-4">
                       <span className={`text-[10px] font-black uppercase tracking-wider ${
                         pag.origem === 'Transferência' || pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-dark-300'
