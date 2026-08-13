@@ -29,6 +29,11 @@ export default function GrupoDetalhe() {
 
   const [menuExportarAberto, setMenuExportarAberto] = useState(false)
   const [exportando, setExportando] = useState(false)
+  // Incrementado sempre que uma transferência é registrada em qualquer
+  // loja do grupo, pra forçar TODOS os cards a recarregar os lançamentos
+  // (senão só a loja de origem via a atualização, e a de destino ficava
+  // com o valor recebido "sumido" até a página ser recarregada na mão).
+  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
     if (grupoId) carregarGrupo()
@@ -233,7 +238,13 @@ export default function GrupoDetalhe() {
           </div>
         ) : (
           lojas.map(loja => (
-            <LojaCard key={loja.id} empresa={loja} lojasDoGrupo={lojas} />
+            <LojaCard
+              key={loja.id}
+              empresa={loja}
+              lojasDoGrupo={lojas}
+              refreshTick={refreshTick}
+              onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
+            />
           ))
         )}
       </div>

@@ -16,9 +16,16 @@ import { Empresa } from '@/types'
 interface LojaCardProps {
   empresa: Empresa
   lojasDoGrupo: Empresa[]
+  /** Muda sempre que uma transferência acontece em QUALQUER loja do
+   * grupo, pra esse card recarregar mesmo se a movimentação não foi
+   * feita por ele (ex: ele é o destino de uma transferência de outro). */
+  refreshTick?: number
+  /** Avisa a página do grupo que uma transferência aconteceu aqui, pra
+   * ela recarregar todos os outros cards também. */
+  onTransferenciaGlobal?: () => void
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal }: LojaCardProps) {
   const supabase = createClient()
   const hoje = new Date().toISOString().split('T')[0]
   const [dataInicio, setDataInicio] = useState(hoje)
@@ -77,7 +84,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
   useEffect(() => {
     carregarPagamentos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresa.id, dataInicio, dataFim])
+  }, [empresa.id, dataInicio, dataFim, refreshTick])
 
   const OPCOES_PERIODO: { key: string; label: string }[] = [
     { key: 'hoje', label: 'Hoje' },
@@ -797,7 +804,7 @@ export default function LojaCard({ empresa, lojasDoGrupo }: LojaCardProps) {
         onClose={() => setModalTransferenciaAberto(false)}
         empresaAtiva={empresa}
         empresas={lojasDoGrupo}
-        onSuccess={carregarPagamentos}
+        onSuccess={() => { carregarPagamentos(); onTransferenciaGlobal?.() }}
       />
 
       {modalFolhaAberto && (
