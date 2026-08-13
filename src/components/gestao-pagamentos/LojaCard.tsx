@@ -306,7 +306,11 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const pagamentosDda = pagamentos.filter(p => p.origem === 'DDA')
   const pagamentosFolha = pagamentos.filter(p => p.origem === 'Folha' || p.tipo === 'Folha' || p.tipo === 'Folha Mensal' || p.tipo === 'Adiantamento')
-  const pagamentosIndividuais = pagamentos.filter(p => p.origem !== 'DDA' && p.origem !== 'Folha' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento')
+  // Transferência Recebida não entra na tabela principal (ela não é uma
+  // despesa/saída) — só conta no número de Entradas (Transf) lá embaixo.
+  // Pra gerenciar/excluir uma transferência, isso é feito pelo lado da
+  // loja de origem, onde ela aparece como Transferência (saída).
+  const pagamentosIndividuais = pagamentos.filter(p => p.origem !== 'DDA' && p.origem !== 'Folha' && p.origem !== 'Transferência Recebida' && !p.tipo?.includes('Folha') && p.tipo !== 'Adiantamento')
 
   function situacaoDoGrupo(itens: any[]) {
     if (itens.length === 0) {
