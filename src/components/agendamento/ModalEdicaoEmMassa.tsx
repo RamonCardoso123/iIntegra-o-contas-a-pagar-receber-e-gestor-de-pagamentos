@@ -10,7 +10,7 @@ interface ModalEdicaoEmMassaProps {
   onClose: () => void
   itens: any[]
   contas: ContaFinanceiraOpcao[]
-  onConfirmar: (dados: { categoria?: string; competencia?: string; contaPagamento?: string }) => void
+  onConfirmar: (dados: { categoria?: string; competencia?: string; contaPagamento?: string; dataPagamento?: string }) => void
   salvando: boolean
 }
 
@@ -26,6 +26,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
   const [categoria, setCategoria] = useState('')
   const [editandoCategoria, setEditandoCategoria] = useState(false)
   const [competencia, setCompetencia] = useState('')
+  const [dataPagamento, setDataPagamento] = useState('')
   const [contaPagamento, setContaPagamento] = useState('')
   const [editandoConta, setEditandoConta] = useState(false)
 
@@ -34,6 +35,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
       setCategoria('')
       setEditandoCategoria(false)
       setCompetencia('')
+      setDataPagamento('')
       setContaPagamento('')
       setEditandoConta(false)
     }
@@ -41,7 +43,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
 
   if (!open) return null
 
-  const podeConfirmar = !!(categoria || competencia || contaPagamento)
+  const podeConfirmar = !!(categoria || competencia || contaPagamento || dataPagamento)
 
   const handleConfirmar = () => {
     if (!podeConfirmar) return
@@ -49,6 +51,7 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
       categoria: categoria || undefined,
       competencia: competencia || undefined,
       contaPagamento: contaPagamento || undefined,
+      dataPagamento: dataPagamento || undefined,
     })
   }
 
@@ -98,6 +101,16 @@ export default function ModalEdicaoEmMassa({ open, onClose, itens, contas, onCon
               type="date"
               value={competencia}
               onChange={e => setCompetencia(e.target.value)}
+              className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-dark-400 uppercase">Data de Pagamento</label>
+            <input
+              type="date"
+              value={dataPagamento}
+              onChange={e => setDataPagamento(e.target.value)}
               className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all"
             />
           </div>

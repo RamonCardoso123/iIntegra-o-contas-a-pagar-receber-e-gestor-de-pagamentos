@@ -214,15 +214,15 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       .from('pagamentos_dda')
       .select('*')
       .eq('empresa_id', empresa.id)
-      .gte('data_vencimento', dataInicio)
-      .lte('data_vencimento', dataFim)
+      .gte('data_pagamento', dataInicio)
+      .lte('data_pagamento', dataFim)
 
     const { data: agendamentos } = await supabase
       .from('agendamentos')
       .select('*')
       .eq('empresa_id', empresa.id)
-      .gte('data_vencimento', dataInicio)
-      .lte('data_vencimento', dataFim)
+      .gte('data_pagamento', dataInicio)
+      .lte('data_pagamento', dataFim)
 
     const unificados = [
       ...(ddas || []).map(d => ({ ...d, origem: 'DDA' })),
@@ -339,8 +339,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
     toast.loading('Limpando registros...', { id: `delete-${empresa.id}` })
     try {
-      await supabase.from('pagamentos_dda').delete().eq('empresa_id', empresa.id).gte('data_vencimento', dataInicio).lte('data_vencimento', dataFim)
-      await supabase.from('agendamentos').delete().eq('empresa_id', empresa.id).gte('data_vencimento', dataInicio).lte('data_vencimento', dataFim)
+      await supabase.from('pagamentos_dda').delete().eq('empresa_id', empresa.id).gte('data_pagamento', dataInicio).lte('data_pagamento', dataFim)
+      await supabase.from('agendamentos').delete().eq('empresa_id', empresa.id).gte('data_pagamento', dataInicio).lte('data_pagamento', dataFim)
 
       toast.success('Registros excluídos!', { id: `delete-${empresa.id}` })
       carregarPagamentos()
@@ -585,11 +585,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   // Aplica Categoria e/ou Competência a vários lançamentos de uma vez —
   // pensado pro caso do DDA importado sem categoria, que bloqueava o
   // envio pro Contas a Pagar item por item.
-  const handleConfirmarEdicaoEmMassa = async (dados: { categoria?: string; competencia?: string; contaPagamento?: string }) => {
+  const handleConfirmarEdicaoEmMassa = async (dados: { categoria?: string; competencia?: string; contaPagamento?: string; dataPagamento?: string }) => {
     const payload: Record<string, string> = {}
     if (dados.categoria) payload.categoria = dados.categoria
     if (dados.competencia) payload.competencia = dados.competencia
     if (dados.contaPagamento) payload.conta_pagamento = dados.contaPagamento
+    if (dados.dataPagamento) payload.data_pagamento = dados.dataPagamento
     if (Object.keys(payload).length === 0) return
 
     const ids = itensEdicaoMassa.map(i => i.id)
@@ -645,6 +646,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             conta_pagamento: itemEditando.conta_pagamento,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
+            data_pagamento: itemEditando.data_pagamento || null,
             competencia: itemEditando.competencia || null,
             status: itemEditando.status,
           }
@@ -655,6 +657,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             descricao: itemEditando.descricao,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
+            data_pagamento: itemEditando.data_pagamento || null,
             competencia: itemEditando.competencia,
             conta_pagamento: itemEditando.conta_pagamento,
             chave_pix: itemEditando.chave_pix,
@@ -919,7 +922,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       </button>
                     </td>
                     <td className="px-6 py-4 text-sm text-dark-300">
-                      {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
+                      {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')}
                     </td>
                     <td className={`px-6 py-4 font-bold text-sm ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
@@ -1175,7 +1178,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
                     <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
                       <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
@@ -1183,6 +1186,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
                       <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Data Pagamento</label>
+                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>
@@ -1263,7 +1270,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Descrição</label>
                     <input type="text" value={itemEditando.descricao || ''} onChange={e => setItemEditando({ ...itemEditando, descricao: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Detalhes..." />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Valor (R$) <span className="text-rose-400">*</span></label>
                       <InputMoeda value={Number(itemEditando.valor) || 0} onChange={v => setItemEditando({ ...itemEditando, valor: v })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
@@ -1271,6 +1278,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Vencimento <span className="text-rose-400">*</span></label>
                       <input type="date" value={itemEditando.data_vencimento || ''} onChange={e => setItemEditando({ ...itemEditando, data_vencimento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Data Pagamento</label>
+                      <input type="date" value={itemEditando.data_pagamento || ''} onChange={e => setItemEditando({ ...itemEditando, data_pagamento: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Competência</label>

@@ -96,15 +96,15 @@ export default function GrupoDetalhe() {
             .from('pagamentos_dda')
             .select('*')
             .eq('empresa_id', loja.id)
-            .gte('data_vencimento', periodo.inicio)
-            .lte('data_vencimento', periodo.fim)
+            .gte('data_pagamento', periodo.inicio)
+            .lte('data_pagamento', periodo.fim)
 
           const { data: agendamentos } = await supabase
             .from('agendamentos')
             .select('*')
             .eq('empresa_id', loja.id)
-            .gte('data_vencimento', periodo.inicio)
-            .lte('data_vencimento', periodo.fim)
+            .gte('data_pagamento', periodo.inicio)
+            .lte('data_pagamento', periodo.fim)
 
           const pagamentos: PagamentoRelatorio[] = [
             ...(ddas || []).map((d: any) => ({
@@ -113,6 +113,7 @@ export default function GrupoDetalhe() {
               documento: d.documento,
               descricao: d.descricao,
               data_vencimento: d.data_vencimento,
+              data_pagamento: d.data_pagamento,
               valor: Number(d.valor || 0),
               status: d.status,
             })),
@@ -131,6 +132,7 @@ export default function GrupoDetalhe() {
                 documento: a.documento,
                 descricao: a.descricao,
                 data_vencimento: a.data_vencimento,
+                data_pagamento: a.data_pagamento,
                 valor: Number(a.valor || 0),
                 status: a.status,
               }

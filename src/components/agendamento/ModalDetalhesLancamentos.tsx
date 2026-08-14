@@ -165,6 +165,7 @@ export default function ModalDetalhesLancamentos({
                   <th className="px-6 py-4">Categoria</th>
                   <th className="px-6 py-4">Descrição</th>
                   <th className="px-6 py-4">Vencimento</th>
+                  <th className="px-6 py-4">Data Pagamento</th>
                   <th className="px-6 py-4">Competência</th>
                   <th className="px-6 py-4">Situação</th>
                   <th className="px-6 py-4">Valor</th>
@@ -174,7 +175,7 @@ export default function ModalDetalhesLancamentos({
               <tbody className="divide-y divide-dark-700/50">
                 {lancamentos.length === 0 ? (
                   <tr>
-                     <td colSpan={9} className="p-12 text-center text-dark-500 font-semibold text-sm">
+                     <td colSpan={10} className="p-12 text-center text-dark-500 font-semibold text-sm">
                        Nenhum lançamento encontrado.
                      </td>
                   </tr>
@@ -205,6 +206,9 @@ export default function ModalDetalhesLancamentos({
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—'}
+                           </td>
+                           <td className="px-6 py-4 text-sm text-dark-300">
+                              {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : '—'}
                            </td>
                            <td className="px-6 py-4 text-sm text-dark-300">
                               {pag.competencia ? pag.competencia.split('-').reverse().join('/') : '—'}

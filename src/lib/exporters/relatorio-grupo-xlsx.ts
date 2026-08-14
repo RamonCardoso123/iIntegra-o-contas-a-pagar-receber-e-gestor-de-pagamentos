@@ -14,6 +14,9 @@ export interface PagamentoRelatorio {
   descricao?: string | null
   documento?: string | null
   data_vencimento: string
+  /** Data real de pagamento (separada do vencimento) — é o que a coluna
+   * "Data Pg." do relatório mostra e o que o filtro de período usa. */
+  data_pagamento?: string | null
   valor: number
   status?: string | null
 }
@@ -207,7 +210,7 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
         tipoLabel,
         beneficiario,
         descricao,
-        formatarDataBr(p.data_vencimento),
+        formatarDataBr(p.data_pagamento || p.data_vencimento),
         Number(p.valor || 0),
         p.status === 'agendado' ? 'Agendado' : 'Em Aberto',
       ])
