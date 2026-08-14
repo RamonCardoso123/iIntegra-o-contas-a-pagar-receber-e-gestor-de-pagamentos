@@ -19,6 +19,7 @@ import SelectorContaFinanceira, { ContaFinanceiraOpcao } from '@/components/uplo
 import SelectorFornecedor from '@/components/upload/SelectorFornecedor'
 import { useEmpresa } from '@/contexts/EmpresaContext'
 import { Empresa } from '@/types'
+import { normalizarNome } from '@/lib/parsers/fornecedores-contaazul'
 
 interface LojaCardProps {
   empresa: Empresa
@@ -258,6 +259,43 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
     await processarArquivo(file, 'dda')
   }
 
+  // Aprendizado de categoria por fornecedor/beneficiário — vale pro DDA e
+  // pro Agendamento manual. Nunca pra Folha: o mesmo colaborador pode
+  // aparecer em meses diferentes como Salário, Adiantamento ou Férias,
+  // então "lembrar" uma categoria fixa por pessoa não faz sentido ali.
+  async function buscarCategoriasAprendidas(): Promise<Map<string, string>> {
+    const mapa = new Map<string, string>()
+    try {
+      const { data } = await supabase
+        .from('fornecedores_contaazul')
+        .select('nome_normalizado, categoria_padrao')
+        .eq('empresa_id', empresa.id)
+        .not('categoria_padrao', 'is', null)
+      ;(data || []).forEach((f: any) => {
+        if (f.nome_normalizado && f.categoria_padrao) mapa.set(f.nome_normalizado, f.categoria_padrao)
+      })
+    } catch {
+      // silencioso — não pode travar a importação por causa disso
+    }
+    return mapa
+  }
+
+  async function aprenderCategoriaPorFornecedor(nomeFornecedor: string, categoria: string) {
+    if (!nomeFornecedor || !categoria) return
+    try {
+      await supabase
+        .from('fornecedores_contaazul')
+        .upsert({
+          empresa_id: empresa.id,
+          nome: nomeFornecedor,
+          nome_normalizado: normalizarNome(nomeFornecedor),
+          categoria_padrao: categoria,
+        }, { onConflict: 'empresa_id,nome_normalizado' })
+    } catch (err) {
+      console.error('Erro ao salvar categoria aprendida:', err)
+    }
+  }
+
   async function processarArquivo(file: File, tipo: 'dda' | 'folha', vencimentoEspecifico?: string) {
     setImportando(true)
     toast.loading('Extraindo dados do arquivo...', { id: `import-${empresa.id}` })
@@ -280,18 +318,21 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       const extraidos = data.dados
       if (!extraidos || !Array.isArray(extraidos)) throw new Error('Formato retornado inválido')
 
+      const categoriasAprendidas = tipo === 'dda' ? await buscarCategoriasAprendidas() : new Map<string, string>()
+
       let count = 0
       for (const item of extraidos) {
         if (tipo === 'dda') {
+          const categoriaAprendida = categoriasAprendidas.get(normalizarNome(item.beneficiario || ''))
           await supabase.from('pagamentos_dda').insert({
             empresa_id: empresa.id,
             beneficiario: item.beneficiario,
             documento: item.documento,
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: item.data_vencimento || dataInicio,
-            // Categoria padrão do DDA — o usuário troca depois se algum
-            // boleto específico for de outra categoria.
-            categoria: 'Materiais para Revenda'
+            // Categoria: usa a categoria aprendida pra esse beneficiário
+            // (de uma edição anterior), senão cai no padrão.
+            categoria: categoriaAprendida || 'Materiais para Revenda'
           })
         } else {
           let competencia = ''
@@ -626,6 +667,16 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       const { error } = await supabase.from(tabela).update(payload).in('id', ids)
       if (error) throw error
 
+      // Aprende a categoria em lote — só faz sentido no DDA. Esse mesmo
+      // modal também atende a Folha, mas lá a categoria não deve virar
+      // "padrão" por colaborador (varia entre Salário/Adiantamento/Férias).
+      if (dados.categoria && itensEdicaoMassa[0]?.origem === 'DDA') {
+        const nomesUnicos = Array.from(new Set(
+          itensEdicaoMassa.map(i => i.beneficiario).filter(Boolean)
+        )) as string[]
+        nomesUnicos.forEach(nome => aprenderCategoriaPorFornecedor(nome, dados.categoria as string))
+      }
+
       toast.success(`${ids.length} lançamento(s) atualizado(s)!`)
       setModalEdicaoMassaAberto(false)
       setItensEdicaoMassa([])
@@ -688,6 +739,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
       const { error } = await supabase.from(tabela).update(payload).eq('id', itemEditando.id)
       if (error) throw error
+
+      // Aprende a categoria pro fornecedor/beneficiário — só no DDA e no
+      // Agendamento manual, nunca na Folha (o mesmo colaborador varia
+      // entre Salário/Adiantamento/Férias mês a mês).
+      if ((itemEditando.origem === 'DDA' || itemEditando.origem === 'Agendamento') && itemEditando.categoria) {
+        const nomeParaAprender = ehDda ? itemEditando.beneficiario : itemEditando.fornecedor
+        if (nomeParaAprender) aprenderCategoriaPorFornecedor(nomeParaAprender, itemEditando.categoria)
+      }
 
       toast.success('Atualizado com sucesso!')
       setModalEdicaoAberto(false)
