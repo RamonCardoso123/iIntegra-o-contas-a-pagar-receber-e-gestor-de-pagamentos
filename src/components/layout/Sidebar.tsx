@@ -109,7 +109,7 @@ export default function Sidebar() {
             <span>Sair do sistema</span>
           </button>
 
-          {/* Logo Connecta AI no rodapé */}
+          {/* Logo Connecta Pag no rodapé */}
           <div className="pt-4 border-t border-dark-700/50 flex flex-col items-center mt-2">
             {config.appLogoUrl ? (
               <img src={config.appLogoUrl} alt={config.appNome} className="h-8 max-w-[120px] object-contain mix-blend-screen opacity-70 hover:opacity-100 transition-opacity" />

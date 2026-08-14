@@ -78,7 +78,7 @@ export default function HomePageClient() {
       <nav style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', maxWidth: '1200px', margin: '0 auto', padding: '22px 32px' }}>
         <a href="#top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ width: '30px', height: '30px', borderRadius: '9px', background: 'linear-gradient(135deg,var(--accent-a),var(--accent-b))', display: 'grid', placeItems: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: '#06080f', fontSize: '15px' }}>C</span>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, letterSpacing: '.14em', fontSize: '15px' }}>CONNECTA<span style={{ color: 'var(--accent-b)' }}> AI</span></span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, letterSpacing: '.14em', fontSize: '15px' }}>CONNECTA<span style={{ color: 'var(--accent-b)' }}> PAG</span></span>
         </a>
         <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '30px', fontSize: '14.5px', color: 'var(--muted)' }}>
           <a href="#como" className="nav-link">Como funciona</a>
@@ -99,11 +99,11 @@ export default function HomePageClient() {
           BPO Financeiro · Automação Inteligente
         </div>
 
-        <div style={{ margin: '34px 0 6px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(40px,8vw,86px)', letterSpacing: '.06em', lineHeight: 1, color: '#fff', textShadow: '0 0 38px rgba(120,140,255,.55),0 0 90px rgba(34,211,238,.25)' }}>CONNECTA AI</div>
+        <div style={{ margin: '34px 0 6px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(40px,8vw,86px)', letterSpacing: '.06em', lineHeight: 1, color: '#fff', textShadow: '0 0 38px rgba(120,140,255,.55),0 0 90px rgba(34,211,238,.25)' }}>CONNECTA PAG</div>
 
-        <h1 style={{ margin: '24px auto 0', maxWidth: '760px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,4.4vw,46px)', lineHeight: 1.1, letterSpacing: '-.01em', color: '#fff', textWrap: 'balance' }}>Do Datacar ao Conta Azul,<br/>seus lançamentos em <span style={{ background: 'linear-gradient(120deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>um clique</span>.</h1>
+        <h1 style={{ margin: '24px auto 0', maxWidth: '760px', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,4.4vw,46px)', lineHeight: 1.1, letterSpacing: '-.01em', color: '#fff', textWrap: 'balance' }}>DDA, Folha e Contas a Pagar,<br/>tudo organizado em <span style={{ background: 'linear-gradient(120deg,var(--accent-a),var(--accent-b))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>um só lugar</span>.</h1>
 
-        <p style={{ margin: '20px auto 0', maxWidth: '600px', fontSize: 'clamp(15px,2.2vw,18px)', lineHeight: 1.6, color: 'var(--muted)', textWrap: 'pretty' }}>O CONNECTA AI busca contas a pagar, contas a receber e vendas no seu sistema, deixa você conferir tudo, e lança no Conta Azul automaticamente. Sem digitação, sem retrabalho.</p>
+        <p style={{ margin: '20px auto 0', maxWidth: '600px', fontSize: 'clamp(15px,2.2vw,18px)', lineHeight: 1.6, color: 'var(--muted)', textWrap: 'pretty' }}>O CONNECTA PAG importa seus lançamentos do Datacar, organiza por loja e período, e envia pro Conta Azul com um clique. Sem digitação, sem retrabalho.</p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center', marginTop: '34px' }}>
           <a href="#contato" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', padding: '15px 26px', borderRadius: '12px', background: 'linear-gradient(135deg,var(--accent-a),var(--accent-b))', color: '#06080f', fontWeight: 700, fontSize: '15.5px', boxShadow: '0 10px 34px -10px rgba(34,197,94,.7)' }}>
@@ -135,13 +135,13 @@ export default function HomePageClient() {
           <div style={{ flex: 1.05, minWidth: '130px', position: 'relative', zIndex: 2 }}>
             <div style={{ border: '1px solid rgba(120,140,255,.45)', background: 'linear-gradient(160deg,rgba(30,40,90,.85),rgba(13,18,34,.85))', backdropFilter: 'blur(8px)', borderRadius: '18px', padding: '20px 14px', textAlign: 'center', animation: 'corePulse 3.6s ease-in-out infinite' }}>
               <div style={{ width: '48px', height: '48px', margin: '0 auto 11px', borderRadius: '14px', background: 'linear-gradient(135deg,var(--accent-a),var(--accent-b))', display: 'grid', placeItems: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '20px', color: '#06080f' }}>C</div>
-              <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#fff' }}>CONNECTA AI</div>
+              <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#fff' }}>CONNECTA PAG</div>
               <div style={{ fontSize: '11.5px', color: '#bfe9ff', marginTop: '2px' }}>Confere & valida</div>
             </div>
           </div>
 
           <div className="flow-line" style={{ flex: .9, minWidth: '90px', position: 'relative', height: '2px', background: 'linear-gradient(90deg,transparent,rgba(34,211,238,.5),transparent)', margin: '0 -6px' }}>
-            <div style={{ position: 'absolute', top: '-9px', left: 0, fontSize: '10.5px', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', width: '100%', textAlign: 'center', transform: 'translateY(-12px)' }}>importa</div>
+            <div style={{ position: 'absolute', top: '-9px', left: 0, fontSize: '10.5px', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', width: '100%', textAlign: 'center', transform: 'translateY(-12px)' }}>envia</div>
             <span style={{ position: 'absolute', top: '-2.5px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-b)', boxShadow: '0 0 10px var(--accent-b)', animation: 'flowDot 2.6s linear infinite', animationDelay: '1.3s' }}></span>
           </div>
 
@@ -170,7 +170,7 @@ export default function HomePageClient() {
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: '38px', color: 'rgba(255,255,255,.1)' }}>01</span>
             </div>
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '19px', color: '#fff', marginBottom: '8px' }}>Conecta & busca</h3>
-            <p style={{ fontSize: '14.5px', lineHeight: 1.6, color: 'var(--muted)' }}>O CONNECTA AI acessa o Datacar e extrai automaticamente as contas a pagar, contas a receber e vendas do período.</p>
+            <p style={{ fontSize: '14.5px', lineHeight: 1.6, color: 'var(--muted)' }}>O CONNECTA PAG acessa o Datacar e extrai automaticamente o DDA, a Folha de Pagamento e as Contas a Pagar do período.</p>
           </div>
           <div style={{ border: '1px solid var(--bd)', background: 'var(--panel)', borderRadius: '18px', padding: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
@@ -226,10 +226,10 @@ export default function HomePageClient() {
         <div style={{ borderTop: '1px solid var(--bd)', paddingTop: '32px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,var(--accent-a),var(--accent-b))', display: 'grid', placeItems: 'center', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: '#06080f', fontSize: '14px' }}>C</span>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, letterSpacing: '.12em', fontSize: '14px' }}>CONNECTA<span style={{ color: 'var(--accent-b)' }}> AI</span></span>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, letterSpacing: '.12em', fontSize: '14px' }}>CONNECTA<span style={{ color: 'var(--accent-b)' }}> PAG</span></span>
           </div>
           <div style={{ fontSize: '13px', color: 'var(--muted)' }}>BPO Financeiro · Automação Inteligente · Gestão Eficiente</div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>© 2026 CONNECTA AI</div>
+          <div style={{ fontSize: '13px', color: 'var(--muted)' }}>© 2026 CONNECTA PAG</div>
         </div>
       </footer>
 
@@ -255,13 +255,13 @@ export default function HomePageClient() {
                 {/* Separador */}
                 <div className="w-16 h-px bg-dark-700/50"></div>
 
-                {/* Logo Connecta AI */}
+                {/* Logo Connecta Pag */}
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl shadow-lg shadow-green-900/50">
                   <span className="text-2xl font-bold text-white">$</span>
                 </div>
               </div>
-              <h1 className="text-2xl font-bold text-white">Connecta AI</h1>
-              <p className="text-dark-400 mt-1 text-sm">Inteligência Artificial para BPO Financeiro</p>
+              <h1 className="text-2xl font-bold text-white">Connecta Pag</h1>
+              <p className="text-dark-400 mt-1 text-sm">Gestão de Pagamentos para BPO Financeiro</p>
             </div>
 
             <div className="bg-dark-800 rounded-2xl border border-dark-700 p-8 shadow-2xl relative">

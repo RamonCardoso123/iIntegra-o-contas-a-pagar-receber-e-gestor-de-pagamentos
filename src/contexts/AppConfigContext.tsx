@@ -16,7 +16,7 @@ export interface AppConfig {
 const DEFAULT: AppConfig = {
   accentColor: 'violet',
   appLogoUrl: null,
-  appNome: 'Connecta AI',
+  appNome: 'Connecta Pag',
   darkMode: true,
   nomeExibicao: '',
 }

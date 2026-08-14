@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Connecta AI | Contas a Pagar',
+  title: 'Connecta Pag | BPO Financeiro',
   description: 'Sistema de Integração e Automação Financeira BPO',
 }
 

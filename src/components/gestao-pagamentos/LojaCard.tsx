@@ -845,7 +845,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             <ArrowRightLeft size={16} className="text-emerald-400" /> Transferência
           </button>
           <button className="flex items-center gap-2 bg-transparent border border-dark-600 hover:bg-dark-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
-            <Sparkles size={16} className="text-amber-400" /> Integrar Connecta AI
+            <Sparkles size={16} className="text-amber-400" /> Integrar Connecta Pag
           </button>
         </div>
 
