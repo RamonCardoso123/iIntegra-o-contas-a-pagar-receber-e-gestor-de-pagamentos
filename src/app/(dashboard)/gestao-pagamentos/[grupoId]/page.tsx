@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -34,6 +34,14 @@ export default function GrupoDetalhe() {
   // (senão só a loja de origem via a atualização, e a de destino ficava
   // com o valor recebido "sumido" até a página ser recarregada na mão).
   const [refreshTick, setRefreshTick] = useState(0)
+
+  // Guarda o período que está filtrado em cada card AGORA (cada loja pode
+  // estar com um período diferente) — usado só na hora de exportar, pra
+  // não forçar um re-render da página inteira a cada mudança de filtro.
+  const periodosPorLojaRef = useRef<Record<string, { inicio: string; fim: string }>>({})
+  const handlePeriodoChange = (lojaId: string, inicio: string, fim: string) => {
+    periodosPorLojaRef.current[lojaId] = { inicio, fim }
+  }
 
   useEffect(() => {
     if (grupoId) carregarGrupo()
@@ -74,17 +82,29 @@ export default function GrupoDetalhe() {
     setMenuExportarAberto(false)
     toast.loading('Gerando relatório...', { id: 'export-geral' })
     try {
+      const hoje = new Date().toISOString().split('T')[0]
+      const fmtBr = (iso: string) => iso.split('-').reverse().join('/')
+
       const lojasRelatorio: LojaRelatorio[] = await Promise.all(
         lojas.map(async (loja) => {
+          // Usa o mesmo período que está filtrado no card dessa loja na
+          // tela agora — se o card não avisou nada ainda (raro), cai no
+          // padrão "hoje", que é o mesmo padrão inicial de cada card.
+          const periodo = periodosPorLojaRef.current[loja.id] || { inicio: hoje, fim: hoje }
+
           const { data: ddas } = await supabase
             .from('pagamentos_dda')
             .select('*')
             .eq('empresa_id', loja.id)
+            .gte('data_vencimento', periodo.inicio)
+            .lte('data_vencimento', periodo.fim)
 
           const { data: agendamentos } = await supabase
             .from('agendamentos')
             .select('*')
             .eq('empresa_id', loja.id)
+            .gte('data_vencimento', periodo.inicio)
+            .lte('data_vencimento', periodo.fim)
 
           const pagamentos: PagamentoRelatorio[] = [
             ...(ddas || []).map((d: any) => ({
@@ -117,7 +137,11 @@ export default function GrupoDetalhe() {
             }),
           ]
 
-          return { nome: loja.nome, pagamentos, saldoInicial: Number(loja.saldo_caixa || 0) }
+          const periodoLabel = periodo.inicio === periodo.fim
+            ? fmtBr(periodo.inicio)
+            : `${fmtBr(periodo.inicio)} até ${fmtBr(periodo.fim)}`
+
+          return { nome: loja.nome, pagamentos, saldoInicial: Number(loja.saldo_caixa || 0), periodoLabel }
         })
       )
 
@@ -253,6 +277,7 @@ export default function GrupoDetalhe() {
               lojasDoGrupo={lojas}
               refreshTick={refreshTick}
               onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
+              onPeriodoChange={handlePeriodoChange}
             />
           ))
         )}

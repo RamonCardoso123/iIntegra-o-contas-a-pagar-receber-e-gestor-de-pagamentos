@@ -30,15 +30,24 @@ interface LojaCardProps {
   /** Avisa a página do grupo que uma transferência aconteceu aqui, pra
    * ela recarregar todos os outros cards também. */
   onTransferenciaGlobal?: () => void
+  /** Avisa a página do grupo qual período está filtrado neste card agora
+   * — usado no Exportar Excel Geral, pra o relatório trazer só o que está
+   * sendo mostrado na tela, e não o histórico inteiro da loja. */
+  onPeriodoChange?: (lojaId: string, dataInicio: string, dataFim: string) => void
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange }: LojaCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const { setEmpresaAtiva } = useEmpresa()
   const hoje = new Date().toISOString().split('T')[0]
   const [dataInicio, setDataInicio] = useState(hoje)
   const [dataFim, setDataFim] = useState(hoje)
+
+  useEffect(() => {
+    onPeriodoChange?.(empresa.id, dataInicio, dataFim)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresa.id, dataInicio, dataFim])
 
   const [pagamentos, setPagamentos] = useState<any[]>([])
   const [carregando, setCarregando] = useState(false)

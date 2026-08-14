@@ -23,6 +23,9 @@ export interface LojaRelatorio {
   pagamentos: PagamentoRelatorio[]
   /** Saldo em caixa real da loja, informado manualmente no card */
   saldoInicial?: number
+  /** Período que estava filtrado na tela quando o relatório foi gerado
+   * (ex: "13/08/2026" ou "10/08/2026 até 16/08/2026") */
+  periodoLabel?: string
 }
 
 const FMT_MOEDA = '"R$"#,##0.00'
@@ -168,7 +171,8 @@ export async function construirWorkbookRelatorioGeral(nomeGrupo: string, lojas: 
     ws.addRow([])
 
     const secaoRowNum = ws.rowCount + 1
-    const secaoRow = ws.addRow([loja.nome])
+    const tituloSecao = loja.periodoLabel ? `${loja.nome} — Período: ${loja.periodoLabel}` : loja.nome
+    const secaoRow = ws.addRow([tituloSecao])
     ws.mergeCells(`A${secaoRowNum}:F${secaoRowNum}`)
     secaoRow.eachCell({ includeEmpty: true }, cell => {
       cell.fill = fillSolido(COR_SECAO)
