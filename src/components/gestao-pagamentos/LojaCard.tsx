@@ -295,14 +295,18 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             }
           }
 
+          const ehAdiantamento = (item.tipo || data.tipoCalculo) === 'Adiantamento'
+
           await supabase.from('agendamentos').insert({
             empresa_id: empresa.id,
             fornecedor: item.fornecedor,
             tipo: item.tipo || data.tipoCalculo || 'Folha',
-            categoria: (item.tipo || data.tipoCalculo) === 'Adiantamento' ? 'Adiantamento Salarial' : 'Salários',
+            categoria: ehAdiantamento ? 'Adiantamento Salarial' : 'Salários',
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: vencimentoEspecifico || dataInicio,
-            descricao: item.descricao,
+            // Descrição acompanha a categoria (em vez do texto fixo "Folha
+            // Mensal" que a IA sempre devolvia, independente do tipo).
+            descricao: ehAdiantamento ? 'Adiantamento Salarial' : 'Salário',
             cpf_cnpj: item.cpf_cnpj,
             competencia: competencia
           })
@@ -375,6 +379,18 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   const situacaoDda = situacaoDoGrupo(pagamentosDda)
   const situacaoFolha = situacaoDoGrupo(pagamentosFolha)
+
+  // Mostra a categoria real dos lançamentos do grupo — se todos tiverem a
+  // mesma categoria, mostra ela; se tiver mais de uma diferente, mostra
+  // "Diverso" em vez de um texto fixo que não reflete os dados de verdade.
+  function categoriaDoGrupo(itens: any[]) {
+    if (itens.length === 0) return '—'
+    const categorias = new Set(itens.map(i => i.categoria || '—'))
+    return categorias.size === 1 ? Array.from(categorias)[0] : 'Diverso'
+  }
+
+  const categoriaDda = categoriaDoGrupo(pagamentosDda)
+  const categoriaFolha = categoriaDoGrupo(pagamentosFolha)
 
   const handleExcluirEmLote = async (ids: string[]) => {
     if (!confirm(`Excluir ${ids.length} lançamento(s)?`)) return
@@ -820,7 +836,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
                     </td>
                     <td className="px-6 py-4 font-bold text-white text-sm">Lançamentos DDA</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">Diversos</td>
+                    <td className="px-6 py-4 text-sm text-dark-300">{categoriaDda}</td>
                     <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosDda.length} itens importados</td>
                     <td className="px-6 py-4">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
@@ -843,7 +859,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                     </td>
                     <td className="px-6 py-4 font-bold text-white text-sm">Folha de Pagamento</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">Salários / Adiantamentos</td>
+                    <td className="px-6 py-4 text-sm text-dark-300">{categoriaFolha}</td>
                     <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosFolha.length} colaboradores</td>
                     <td className="px-6 py-4">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
