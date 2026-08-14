@@ -275,7 +275,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             beneficiario: item.beneficiario,
             documento: item.documento,
             valor: parseFloat(String(item.valor).replace(',', '.')),
-            data_vencimento: item.data_vencimento || dataInicio
+            data_vencimento: item.data_vencimento || dataInicio,
+            // Categoria padrão do DDA — o usuário troca depois se algum
+            // boleto específico for de outra categoria.
+            categoria: 'Materiais para Revenda'
           })
         } else {
           let competencia = ''
