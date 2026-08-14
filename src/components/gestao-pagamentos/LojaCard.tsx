@@ -34,9 +34,12 @@ interface LojaCardProps {
    * — usado no Exportar Excel Geral, pra o relatório trazer só o que está
    * sendo mostrado na tela, e não o histórico inteiro da loja. */
   onPeriodoChange?: (lojaId: string, dataInicio: string, dataFim: string) => void
+  /** Avisa a página do grupo que esta loja saiu do grupo (removida pela
+   * lixeira), pra ela recarregar a lista de lojas e o card sumir da tela. */
+  onLojaRemovida?: () => void
 }
 
-export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange }: LojaCardProps) {
+export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransferenciaGlobal, onPeriodoChange, onLojaRemovida }: LojaCardProps) {
   const supabase = createClient()
   const router = useRouter()
   const { setEmpresaAtiva } = useEmpresa()
@@ -58,6 +61,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [vencimentoFolha, setVencimentoFolha] = useState(hoje)
 
   const [menuImportarAberto, setMenuImportarAberto] = useState(false)
+  const [menuExcluirAberto, setMenuExcluirAberto] = useState(false)
   const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false)
   const [modalTransferenciaAberto, setModalTransferenciaAberto] = useState(false)
 
@@ -346,6 +350,23 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       carregarPagamentos()
     } catch (e) {
       toast.error('Erro ao excluir registros.', { id: `delete-${empresa.id}` })
+    }
+  }
+
+  // Só tira a loja deste grupo (grupo_id = null) — a loja continua
+  // existindo normalmente no sistema (Contas a Pagar, Dashboard etc.) e
+  // pode ser adicionada de volta a este ou outro grupo depois.
+  async function handleRemoverLojaDoGrupo() {
+    setMenuExcluirAberto(false)
+    if (!confirm(`Remover "${empresa.nome}" deste grupo? A loja continua existindo no sistema e pode ser adicionada de volta depois.`)) return
+
+    try {
+      const { error } = await supabase.from('empresas').update({ grupo_id: null, grupo_adicionado_em: null }).eq('id', empresa.id)
+      if (error) throw error
+      toast.success(`"${empresa.nome}" removida do grupo.`)
+      onLojaRemovida?.()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao remover loja do grupo')
     }
   }
 
@@ -692,9 +713,28 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 : `${dataInicio.split('-').reverse().join('/')} até ${dataFim.split('-').reverse().join('/')}`}
             </span>
           </div>
-          <button onClick={handleLimparRegistrosDoDia} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
-            <Trash2 size={16} />
-          </button>
+          <div className="relative">
+            <button onClick={() => setMenuExcluirAberto(!menuExcluirAberto)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-dark-800 text-dark-300 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+              <Trash2 size={16} />
+            </button>
+
+            {menuExcluirAberto && (
+              <div className="absolute top-full mt-2 left-0 w-64 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <button
+                  onClick={() => { setMenuExcluirAberto(false); handleLimparRegistrosDoDia() }}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-dark-200 hover:bg-dark-700 transition-colors border-b border-dark-700/50"
+                >
+                  Excluir lançamentos do período
+                </button>
+                <button
+                  onClick={handleRemoverLojaDoGrupo}
+                  className="w-full text-left px-4 py-3 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+                >
+                  Remover loja deste grupo
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="relative">
             <button

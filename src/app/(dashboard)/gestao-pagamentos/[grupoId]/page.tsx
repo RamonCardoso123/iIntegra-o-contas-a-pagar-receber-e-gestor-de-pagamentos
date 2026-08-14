@@ -280,6 +280,7 @@ export default function GrupoDetalhe() {
               refreshTick={refreshTick}
               onTransferenciaGlobal={() => setRefreshTick(t => t + 1)}
               onPeriodoChange={handlePeriodoChange}
+              onLojaRemovida={carregarGrupo}
             />
           ))
         )}
