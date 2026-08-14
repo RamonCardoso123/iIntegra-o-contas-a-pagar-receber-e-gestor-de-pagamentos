@@ -1,7 +1,6 @@
 import { EmpresaProvider } from '@/contexts/EmpresaContext'
 import { AppConfigProvider } from '@/contexts/AppConfigContext'
 import Sidebar from '@/components/layout/Sidebar'
-import Header from '@/components/layout/Header'
 import AuthGuard from '@/components/AuthGuard'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -12,7 +11,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex h-screen bg-dark-950 overflow-hidden">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-              <Header />
               <main className="flex-1 overflow-y-auto p-6 relative">
                 {children}
                 {/* Logo duplicado removido para não conflitar com a sidebar */}
