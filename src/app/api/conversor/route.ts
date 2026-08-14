@@ -35,7 +35,11 @@ async function enriquecerBeneficiariosPorCnpj(dados: ItemDDA[]): Promise<ItemDDA
 
     const consultas = Array.from(cnpjsUnicos).map(async (cnpj) => {
       try {
-        const resultado = await buscarCnpj(cnpj)
+        // Timeout de 2.5 segundos para que a Brasil API não atrase o processo geral
+        const resultado = await Promise.race([
+          buscarCnpj(cnpj),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout Brasil API')), 2500))
+        ])
         if (resultado) {
           const nome = resultado.razao_social && resultado.razao_social.trim()
             ? resultado.razao_social.trim()

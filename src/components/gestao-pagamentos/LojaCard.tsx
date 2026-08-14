@@ -298,9 +298,25 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
   async function processarArquivo(file: File, tipo: 'dda' | 'folha', vencimentoEspecifico?: string) {
     setImportando(true)
-    toast.loading('Extraindo dados do arquivo...', { id: `import-${empresa.id}` })
+    const toastId = `import-${empresa.id}`
+    toast.loading('Enviando arquivo e extraindo dados com IA...', { id: toastId })
     setMenuImportarAberto(false)
     setModalFolhaAberto(false)
+
+    // Intervalo de mensagens de progresso estimadas para melhor feedback visual (UX)
+    let etapa = 1
+    const intervaloProgress = setInterval(() => {
+      etapa++
+      if (etapa === 2) {
+        toast.loading('Gemini analisando o documento e extraindo dados...', { id: toastId })
+      } else if (etapa === 3) {
+        toast.loading('Enriquecendo dados (consultando CNPJs na Brasil API)...', { id: toastId })
+      } else if (etapa === 4) {
+        toast.loading('Processando dados e preparando gravação...', { id: toastId })
+      } else if (etapa >= 5) {
+        toast.loading('Salvando lançamentos no banco de dados...', { id: toastId })
+      }
+    }, 4500)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -318,23 +334,29 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       const extraidos = data.dados
       if (!extraidos || !Array.isArray(extraidos)) throw new Error('Formato retornado inválido')
 
+      clearInterval(intervaloProgress)
+      toast.loading('Gravando dados no banco Supabase...', { id: toastId })
+
       const categoriasAprendidas = tipo === 'dda' ? await buscarCategoriasAprendidas() : new Map<string, string>()
 
-      let count = 0
-      for (const item of extraidos) {
-        if (tipo === 'dda') {
+      if (tipo === 'dda') {
+        const registros = extraidos.map(item => {
           const categoriaAprendida = categoriasAprendidas.get(normalizarNome(item.beneficiario || ''))
-          await supabase.from('pagamentos_dda').insert({
+          return {
             empresa_id: empresa.id,
             beneficiario: item.beneficiario,
             documento: item.documento,
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: item.data_vencimento || dataInicio,
-            // Categoria: usa a categoria aprendida pra esse beneficiário
-            // (de uma edição anterior), senão cai no padrão.
             categoria: categoriaAprendida || 'Materiais para Revenda'
-          })
-        } else {
+          }
+        })
+        if (registros.length > 0) {
+          const { error } = await supabase.from('pagamentos_dda').insert(registros)
+          if (error) throw error
+        }
+      } else {
+        const registros = extraidos.map(item => {
           let competencia = ''
           if (vencimentoEspecifico && data.tipoCalculo) {
             const [ano, mes, dia] = vencimentoEspecifico.split('-')
@@ -351,28 +373,31 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
           const ehAdiantamento = (item.tipo || data.tipoCalculo) === 'Adiantamento'
 
-          await supabase.from('agendamentos').insert({
+          return {
             empresa_id: empresa.id,
             fornecedor: item.fornecedor,
             tipo: item.tipo || data.tipoCalculo || 'Folha',
             categoria: ehAdiantamento ? 'Adiantamento Salarial' : 'Salários',
             valor: parseFloat(String(item.valor).replace(',', '.')),
             data_vencimento: vencimentoEspecifico || dataInicio,
-            // Descrição acompanha a categoria (em vez do texto fixo "Folha
-            // Mensal" que a IA sempre devolvia, independente do tipo).
             descricao: ehAdiantamento ? 'Adiantamento Salarial' : 'Salário',
             cpf_cnpj: item.cpf_cnpj,
             competencia: competencia
-          })
+          }
+        })
+        if (registros.length > 0) {
+          const { error } = await supabase.from('agendamentos').insert(registros)
+          if (error) throw error
         }
-        count++
       }
 
-      toast.success(`${count} pagamento(s) extraído(s) e salvo(s) com sucesso!`, { id: `import-${empresa.id}` })
+      toast.success(`${extraidos.length} pagamento(s) extraído(s) e salvo(s) com sucesso!`, { id: toastId })
       carregarPagamentos()
     } catch (err: any) {
-      toast.error(err.message, { id: `import-${empresa.id}` })
+      clearInterval(intervaloProgress)
+      toast.error(`Falha na extração: ${err.message}`, { id: toastId, duration: 8000 })
     } finally {
+      clearInterval(intervaloProgress)
       setImportando(false)
       const inputs = document.querySelectorAll(`input[type="file"][data-loja="${empresa.id}"]`)
       inputs.forEach(input => (input as HTMLInputElement).value = '')
