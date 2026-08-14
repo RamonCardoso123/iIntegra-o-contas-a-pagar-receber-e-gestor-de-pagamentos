@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Save, Moon, Palette, User, KeyRound } from 'lucide-react'
+import { X, Save, Moon, Sun, Palette, User, KeyRound } from 'lucide-react'
 import { useAppConfig, AccentColor } from '@/contexts/AppConfigContext'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
@@ -21,6 +21,7 @@ export default function ModalPerfil({ open, onClose, userEmail }: Props) {
   const { config, update } = useAppConfig()
   const [nomeExibicao, setNomeExibicao] = useState('')
   const [accentColor, setAccentColor] = useState(config.accentColor)
+  const [darkMode, setDarkMode] = useState(config.darkMode)
   const [enviandoSenha, setEnviandoSenha] = useState(false)
   const supabase = createClient()
 
@@ -28,16 +29,17 @@ export default function ModalPerfil({ open, onClose, userEmail }: Props) {
     if (open) {
       setAccentColor(config.accentColor)
       setNomeExibicao(config.nomeExibicao || '')
+      setDarkMode(config.darkMode)
     }
   }, [open, config])
 
   if (!open) return null
 
   const handleSave = () => {
-    // Cor e nome são pessoais — o AppConfigContext salva atrelado ao
+    // Cor, nome e tema são pessoais — o AppConfigContext salva atrelado ao
     // usuário logado (cache local + Supabase), então sempre que essa
     // conta logar em qualquer lugar, volta com a mesma preferência.
-    update({ accentColor, nomeExibicao })
+    update({ accentColor, nomeExibicao, darkMode })
     toast.success('Perfil salvo!')
     onClose()
   }
@@ -111,12 +113,32 @@ export default function ModalPerfil({ open, onClose, userEmail }: Props) {
             <p className="text-[10px] text-dark-600 mt-1.5">Essa cor é sua — fica salva nessa conta, não muda pra quem mais logar.</p>
           </div>
 
-          {/* Modo claro/escuro — só escuro por enquanto */}
+          {/* Modo claro/escuro */}
           <div>
             <p className="text-[10px] text-dark-500 font-semibold uppercase tracking-wider mb-2">Aparencia</p>
-            <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-dark-700 bg-dark-800/50 text-dark-300 text-xs font-medium">
-              <Moon size={12} /> Escuro
-              <span className="text-dark-600 ml-auto">Modo claro em breve</span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDarkMode(true)}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-dark-800 text-white border-violet-500 shadow-md'
+                    : 'bg-dark-900 text-dark-400 border-dark-700 hover:text-white hover:bg-dark-800'
+                }`}
+              >
+                <Moon size={12} /> Escuro
+              </button>
+              <button
+                type="button"
+                onClick={() => setDarkMode(false)}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                  !darkMode
+                    ? 'bg-dark-800 text-white border-violet-500 shadow-md'
+                    : 'bg-dark-900 text-dark-400 border-dark-700 hover:text-white hover:bg-dark-800'
+                }`}
+              >
+                <Sun size={12} /> Claro
+              </button>
             </div>
           </div>
 

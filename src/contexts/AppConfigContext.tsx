@@ -42,7 +42,7 @@ function saveAppShared(cfg: Pick<AppConfig, 'appLogoUrl' | 'appNome'>) {
   localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(cfg))
 }
 
-type PerfilPessoal = Pick<AppConfig, 'accentColor' | 'nomeExibicao'>
+type PerfilPessoal = Pick<AppConfig, 'accentColor' | 'nomeExibicao' | 'darkMode'>
 
 // Cor de destaque e nome de exibição são pessoais — atrelados ao usuário
 // que logou. Guarda um cache local por usuário (carregamento instantâneo,
@@ -128,12 +128,19 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
       if (cancelado || error || !data) return
 
-      const doBanco: PerfilPessoal = {
+      const doBanco = {
         accentColor: (data.accent_color as AccentColor) || DEFAULT.accentColor,
         nomeExibicao: data.nome_exibicao || '',
       }
-      setConfig(prev => ({ ...prev, ...doBanco }))
-      savePerfilCache(user.id, doBanco)
+      setConfig(prev => {
+        const next = { ...prev, ...doBanco }
+        savePerfilCache(user.id, {
+          accentColor: next.accentColor,
+          nomeExibicao: next.nomeExibicao,
+          darkMode: next.darkMode
+        })
+        return next
+      })
     }
 
     carregarPerfil()
@@ -142,7 +149,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN') carregarPerfil()
       if (event === 'SIGNED_OUT') {
         userIdRef.current = null
-        setConfig(prev => ({ ...prev, accentColor: DEFAULT.accentColor, nomeExibicao: '' }))
+        setConfig(prev => ({ ...prev, accentColor: DEFAULT.accentColor, nomeExibicao: '', darkMode: DEFAULT.darkMode }))
       }
     })
 
@@ -165,9 +172,13 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
       // accentColor/nomeExibicao são pessoais — salvam atrelados ao
       // usuário logado (cache local + Supabase).
-      if ('accentColor' in partial || 'nomeExibicao' in partial) {
+      if ('accentColor' in partial || 'nomeExibicao' in partial || 'darkMode' in partial) {
         const userId = userIdRef.current
-        const perfil: PerfilPessoal = { accentColor: next.accentColor, nomeExibicao: next.nomeExibicao }
+        const perfil: PerfilPessoal = {
+          accentColor: next.accentColor,
+          nomeExibicao: next.nomeExibicao,
+          darkMode: next.darkMode
+        }
         if (userId) {
           savePerfilCache(userId, perfil)
           supabase

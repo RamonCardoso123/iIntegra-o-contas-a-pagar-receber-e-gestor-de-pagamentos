@@ -327,3 +327,161 @@ body {
   .grid-4 { grid-template-columns: 1fr 1fr !important; }
 }
 
+/* ─── Light Mode Override (html:not(.dark)) ──────────────────────────────── */
+html:not(.dark) {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+}
+
+html:not(.dark) body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Redefinições das cores fixas escuras nos painéis e cards do dashboard */
+html:not(.dark) .bg-\[\#11141c\],
+html:not(.dark) .bg-dark-900 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .bg-\[\#0d1017\] {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-\[\#0b0e14\] {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .bg-dark-950 {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-dark-800,
+html:not(.dark) .bg-dark-800\/50,
+html:not(.dark) .bg-dark-800\/60 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) .bg-dark-900\/50 {
+  background-color: rgba(248, 250, 252, 0.6) !important;
+}
+
+/* Sobrescreve bordas escuras por cinza claro */
+html:not(.dark) .border-dark-700,
+html:not(.dark) .border-dark-700\/50 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .border-dark-600 {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .divide-dark-700\/50 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Cores de textos principais e secundários */
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-dark-200 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-dark-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-dark-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-dark-500 {
+  color: #64748b !important;
+}
+
+/* Inputs, placeholders e selects */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #6366f1 !important;
+}
+
+html:not(.dark) ::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Badges e tags com fundo transparente (aumenta o contraste das cores de destaque no fundo claro) */
+html:not(.dark) .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+html:not(.dark) .text-emerald-400 {
+  color: #047857 !important;
+}
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-500 {
+  color: #be123c !important;
+}
+html:not(.dark) .text-violet-400 {
+  color: #6d28d9 !important;
+}
+html:not(.dark) .text-amber-500 {
+  color: #b45309 !important;
+}
+
+/* Garantir que textos e ícones brancos de botões e badges com fundo colorido forte NÃO fiquem pretos */
+html:not(.dark) .bg-blue-600,
+html:not(.dark) .bg-blue-600 *,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-emerald-600 *,
+html:not(.dark) .bg-violet-600,
+html:not(.dark) .bg-violet-600 *,
+html:not(.dark) .bg-brand-600,
+html:not(.dark) .bg-brand-600 *,
+html:not(.dark) .bg-rose-600,
+html:not(.dark) .bg-rose-600 *,
+html:not(.dark) .bg-rose-500,
+html:not(.dark) .bg-rose-500 *,
+html:not(.dark) .bg-blue-500,
+html:not(.dark) .bg-blue-500 *,
+html:not(.dark) .bg-emerald-500,
+html:not(.dark) .bg-emerald-500 *,
+html:not(.dark) .bg-violet-500,
+html:not(.dark) .bg-violet-500 *,
+html:not(.dark) .bg-brand-500,
+html:not(.dark) .bg-brand-500 * {
+  color: #ffffff !important;
+}
+
+/* Correções específicas para menus de dropdown e tooltips */
+html:not(.dark) .bg-dark-800 .text-dark-200:hover,
+html:not(.dark) .bg-dark-800 button:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Garante contraste para scrollbars */
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
