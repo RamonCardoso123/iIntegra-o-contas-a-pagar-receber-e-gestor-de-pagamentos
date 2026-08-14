@@ -196,6 +196,20 @@ export interface DatacarProdutoResponse {
   unidade_medida?: string | null
 }
 
+/**
+ * DIAGNÓSTICO: busca o "Movimento Diário" (valores de vendas por dia,
+ * possivelmente com formas de pagamento) — usado só pra investigar se
+ * esse endpoint serve como substituto do Relatório de Caixa (CxRl010) do
+ * Datacar.Cloud, que não tem endpoint próprio na API pública.
+ */
+export async function buscarMovimentoDiario(
+  credentials: DatacarCredentials,
+  dtIni: string,
+  dtFim: string,
+): Promise<unknown[]> {
+  return fetchDatacar<unknown[]>('/movimentodiario', credentials, { dtIni, dtFim })
+}
+
 export async function buscarProdutos(
   credentials: DatacarCredentials,
   codigo: string,
