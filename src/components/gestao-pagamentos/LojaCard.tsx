@@ -752,7 +752,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
           )}
         </div>
 
-        <div className="text-right border-l border-dark-700 pl-6">
+        <div className="bg-dark-800/60 border border-dark-700 rounded-xl px-5 py-3 text-right">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo em Caixa</p>
           <div className="flex items-baseline gap-1 justify-end">
             <span className="text-dark-500 font-bold text-sm">R$</span>
@@ -822,7 +822,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <th className="px-6 py-4">DESCRIÇÃO</th>
               <th className="px-6 py-4">SITUAÇÃO</th>
               <th className="px-6 py-4">DATA PG.</th>
-              <th className="px-6 py-4">VALOR</th>
+              <th className="px-6 py-4 text-right">VALOR</th>
               <th className="px-6 py-4 text-center">AÇÕES</th>
             </tr>
           </thead>
@@ -854,7 +854,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-6 py-4 font-black text-rose-400 text-sm">
+                    <td className="px-6 py-4 font-black text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -877,7 +877,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-6 py-4 font-black text-rose-400 text-sm">
+                    <td className="px-6 py-4 font-black text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -891,8 +891,10 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 {pagamentosIndividuais.map((pag, idx) => (
                   <tr key={pag.id || idx} className="bg-[#11141c] hover:bg-dark-800/30 transition-colors border-b border-dark-700/50">
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${
-                        pag.origem === 'Transferência' || pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-dark-300'
+                      <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
+                        pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'
+                        : pag.origem === 'Transferência' ? 'bg-dark-700 text-dark-300'
+                        : 'bg-violet-500/10 text-violet-400'
                       }`}>
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
@@ -924,7 +926,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                     <td className="px-6 py-4 text-sm text-dark-300">
                       {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')}
                     </td>
-                    <td className={`px-6 py-4 font-bold text-sm ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <td className={`px-6 py-4 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -972,22 +974,22 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       </div>
 
       {/* Footer Totals */}
-      <div className="bg-[#0b0e14] border-t border-dark-700 px-6 py-8 flex flex-col md:flex-row justify-between gap-6">
-        <div>
+      <div className="bg-[#0b0e14] border-t border-dark-700 px-6 py-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Total Despesas</p>
-          <p className="text-lg font-black text-rose-500">
+          <p className="text-lg font-black text-rose-500 tabular-nums">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalDespesas)}
           </p>
         </div>
-        <div className="md:border-l md:border-dark-700 md:pl-12">
+        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Entradas (Transf)</p>
-          <p className="text-lg font-black text-emerald-500">
+          <p className="text-lg font-black text-emerald-500 tabular-nums">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalEntradas)}
           </p>
         </div>
-        <div className="md:ml-auto text-right">
+        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4">
           <p className="text-[10px] font-bold text-dark-400 uppercase tracking-widest mb-1">Saldo Final Estimado</p>
-          <p className={`text-lg font-black ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <p className={`text-lg font-black tabular-nums ${saldoFinalEstimado < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saldoFinalEstimado)}
           </p>
         </div>

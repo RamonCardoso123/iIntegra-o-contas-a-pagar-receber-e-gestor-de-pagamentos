@@ -97,23 +97,46 @@ export default function MeusGrupos() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {grupos.map(grupo => (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
+                <p className="text-dark-400 text-xs font-semibold mb-1">Grupos</p>
+                <p className="text-white text-2xl font-bold">{grupos.length}</p>
+              </div>
+              <div className="bg-[#11141c] border border-dark-700 rounded-xl p-4">
+                <p className="text-dark-400 text-xs font-semibold mb-1">Lojas no total</p>
+                <p className="text-white text-2xl font-bold">{grupos.reduce((acc, g) => acc + g.totalLojas, 0)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {grupos.map(grupo => (
+                <button
+                  key={grupo.id}
+                  onClick={() => router.push(`/gestao-pagamentos/${grupo.id}`)}
+                  className="bg-[#11141c] border border-dark-700 hover:border-brand-500 rounded-2xl p-5 text-left transition-all shadow-lg group"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 transition-colors">
+                      <Building2 size={18} className="text-brand-400" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-blue-500/10 text-blue-400">
+                      {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja' : 'lojas'}
+                    </span>
+                  </div>
+                  <p className="text-white font-bold text-base truncate">{grupo.nome}</p>
+                </button>
+              ))}
+
               <button
-                key={grupo.id}
-                onClick={() => router.push(`/gestao-pagamentos/${grupo.id}`)}
-                className="bg-[#11141c] border border-dark-700 hover:border-brand-500 rounded-2xl p-5 text-left transition-all shadow-lg group"
+                onClick={() => setModalNovoGrupoAberto(true)}
+                className="border-2 border-dashed border-dark-700 hover:border-brand-500 hover:bg-brand-500/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 transition-all text-dark-400 hover:text-brand-400 min-h-[128px]"
               >
-                <div className="w-10 h-10 bg-brand-500/10 border border-brand-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-brand-500/20 transition-colors">
-                  <Building2 size={18} className="text-brand-400" />
-                </div>
-                <p className="text-white font-bold text-base truncate mb-1">{grupo.nome}</p>
-                <p className="text-dark-400 text-xs font-semibold">
-                  {grupo.totalLojas} {grupo.totalLojas === 1 ? 'loja' : 'lojas'}
-                </p>
+                <Plus size={20} />
+                <span className="text-sm font-semibold">Novo Grupo</span>
               </button>
-            ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
