@@ -58,6 +58,12 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
     const carregarCategoriaAprendida = async () => {
       if (!fornecedor || !empresaAtiva?.id) return
 
+      // Limpeza preventiva imediata: se a categoria atual contiver "fornecedor", limpa logo
+      setCategoria(prev => {
+        if (prev.trim().toLowerCase().includes('fornecedor')) return ''
+        return prev
+      })
+
       const normalizarLocal = (n: string) => {
         return n
           .toUpperCase()
@@ -95,13 +101,6 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
           setCategoria(caData.categoria_padrao)
           return
         }
-
-        // Se não houver categoria aprendida, e a categoria for genérica (Fornecedor/Fornecedores), limpa o campo
-        setCategoria(prev => {
-          const lowerPrev = prev.trim().toLowerCase()
-          if (lowerPrev === 'fornecedor' || lowerPrev === 'fornecedores') return ''
-          return prev
-        })
       } catch (err) {
         console.error('Erro ao buscar categoria aprendida:', err)
       }
@@ -172,7 +171,14 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       if (dados.fornecedor) setFornecedor(dados.fornecedor)
       if (dados.data_vencimento) setDataVencimento(dados.data_vencimento)
       if (dados.valor) setValor(Number(dados.valor) || 0)
-      if (dados.categoria) setCategoria(dados.categoria)
+      if (dados.categoria) {
+        const catClean = dados.categoria.trim().toLowerCase()
+        if (catClean.includes('fornecedor')) {
+          setCategoria('')
+        } else {
+          setCategoria(dados.categoria)
+        }
+      }
       if (dados.tipo) setTipo(dados.tipo)
       if (dados.chave_pix) setChavePix(dados.chave_pix)
 
