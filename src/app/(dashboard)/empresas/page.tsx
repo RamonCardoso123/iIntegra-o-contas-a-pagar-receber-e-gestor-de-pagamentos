@@ -471,6 +471,18 @@ function EmpresasPageContent() {
       const razaoSocialFinal = form.razao_social.trim() || null
       const nomeFantasiaFinal = form.nome_fantasia.trim() || null
 
+      if (!form.nome.trim()) {
+        toast.error('O Nome Popular é obrigatório!')
+        setSalvando(false)
+        return
+      }
+
+      if (cnpjLimpo.length !== 14) {
+        toast.error('O CNPJ é obrigatório e deve conter exatamente 14 dígitos!')
+        setSalvando(false)
+        return
+      }
+
       if (editingId) {
         // Atualiza a empresa existente
         const { error: errEmp } = await supabase

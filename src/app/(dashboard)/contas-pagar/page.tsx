@@ -564,7 +564,14 @@ export default function ContasPagarPage() {
               <div className="bg-dark-800 border border-dark-700 rounded-xl p-5 animate-fade-in">
                 <div className="flex items-center gap-2 mb-4 text-white font-semibold">
                   <Database size={18} className="text-blue-400" />
-                  <h3>Buscar Contas do Datacar</h3>
+                  <h3>
+                    Buscar Contas do Datacar
+                    {empresaAtiva && (
+                      <span className="text-blue-400 font-normal">
+                        {` - conectado à ${empresaAtiva.nome}`}
+                      </span>
+                    )}
+                  </h3>
                 </div>
                 <div className="flex items-end gap-4 flex-wrap">
                   <div>
