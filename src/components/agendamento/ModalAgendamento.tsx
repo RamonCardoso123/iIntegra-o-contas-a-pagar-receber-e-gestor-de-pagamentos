@@ -54,6 +54,64 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       })
   }, [open, empresaAtiva?.id])
 
+  useEffect(() => {
+    const carregarCategoriaAprendida = async () => {
+      if (!fornecedor || !empresaAtiva?.id) return
+
+      const normalizarLocal = (n: string) => {
+        return n
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // remove acentos
+          .replace(/[^A-Z0-9\s]/g, ' ')   // remove pontuação
+          .replace(/\s+/g, ' ')            // colapsa espaços
+          .trim()
+      }
+
+      const nomeNorm = normalizarLocal(fornecedor)
+      try {
+        // 1. Tentar buscar em fornecedor_depara
+        const { data: deparaData } = await supabase
+          .from('fornecedor_depara')
+          .select('categoria_padrao')
+          .eq('empresa_id', empresaAtiva.id)
+          .eq('nome_original_normalizado', nomeNorm)
+          .maybeSingle()
+
+        if (deparaData?.categoria_padrao) {
+          setCategoria(deparaData.categoria_padrao)
+          return
+        }
+
+        // 2. Tentar buscar em fornecedores_contaazul
+        const { data: caData } = await supabase
+          .from('fornecedores_contaazul')
+          .select('categoria_padrao')
+          .eq('empresa_id', empresaAtiva.id)
+          .eq('nome_normalizado', nomeNorm)
+          .maybeSingle()
+
+        if (caData?.categoria_padrao) {
+          setCategoria(caData.categoria_padrao)
+          return
+        }
+
+        // Se não houver categoria aprendida, e a categoria for genérica (Fornecedor/Fornecedores), limpa o campo
+        setCategoria(prev => {
+          const lowerPrev = prev.trim().toLowerCase()
+          if (lowerPrev === 'fornecedor' || lowerPrev === 'fornecedores') return ''
+          return prev
+        })
+      } catch (err) {
+        console.error('Erro ao buscar categoria aprendida:', err)
+      }
+    }
+
+    if (open) {
+      carregarCategoriaAprendida()
+    }
+  }, [fornecedor, empresaAtiva?.id, open, supabase])
+
   if (!open) return null
 
   // Limpa todos os campos do formulário — chamado depois de salvar com
@@ -142,9 +200,17 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
   const handleSalvar = async () => {
     if (!empresaAtiva) return
-    if (!fornecedor || !dataVencimento || !dataCompetencia || !valor || !categoria || !descricao) {
-      toast.error('Preencha os campos obrigatórios (Fornecedor, Descrição, Vencimento, Competência, Valor e Categoria).')
-      return
+    const camposAusentes = [];
+    if (!fornecedor) camposAusentes.push('Fornecedor');
+    if (!descricao) camposAusentes.push('Descrição');
+    if (!dataVencimento) camposAusentes.push('Vencimento');
+    if (!dataCompetencia) camposAusentes.push('Competência');
+    if (!valor) camposAusentes.push('Valor');
+    if (!categoria) camposAusentes.push('Categoria');
+
+    if (camposAusentes.length > 0) {
+      toast.error(`Preencha o(s) campo(s) obrigatório(s): ${camposAusentes.join(', ')}.`);
+      return;
     }
 
     setSalvando(true)
