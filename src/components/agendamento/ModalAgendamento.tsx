@@ -28,6 +28,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const [contaPagamento, setContaPagamento] = useState('')
   const [tipo, setTipo] = useState('PIX')
   const [chavePix, setChavePix] = useState('')
+  const [codigoBarras, setCodigoBarras] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [lendoAnexo, setLendoAnexo] = useState(false)
   const [nomeAnexo, setNomeAnexo] = useState('')
@@ -126,6 +127,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
     setContaPagamento('')
     setTipo('PIX')
     setChavePix('')
+    setCodigoBarras('')
     setNomeAnexo('')
     setArquivoAnexo(null)
     setEditandoFornecedor(false)
@@ -181,6 +183,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
       }
       if (dados.tipo) setTipo(dados.tipo)
       if (dados.chave_pix) setChavePix(dados.chave_pix)
+      if (dados.codigo_barras) setCodigoBarras(dados.codigo_barras)
 
       // Pra boleto: a Descrição mostra o nº do documento. Pros demais
       // (impostos, guias, taxas etc.) usa a descrição que a IA já monta.
@@ -254,6 +257,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
         conta_pagamento: contaPagamento,
         tipo,
         chave_pix: chavePix,
+        codigo_barras: codigoBarras || null,
         anexo_url: anexoUrl || null
       })
 
@@ -432,6 +436,13 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
             <div className="space-y-1">
               <label className="text-xs font-semibold text-dark-400 uppercase">Chave PIX</label>
               <input type="text" value={chavePix} onChange={e => setChavePix(e.target.value)} placeholder="Chave do beneficiário" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
+            </div>
+          )}
+
+          {(tipo === 'Boleto' || tipo === 'Imposto') && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-dark-400 uppercase">Código de Barras</label>
+              <input type="text" value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)} placeholder="Código de barras ou linha digitável numérica" className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
           )}
         </div>

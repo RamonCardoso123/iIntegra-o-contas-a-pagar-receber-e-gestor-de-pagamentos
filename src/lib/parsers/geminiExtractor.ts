@@ -27,6 +27,7 @@ export interface ItemAvulso {
   categoria: string
   tipo: string
   chave_pix: string
+  codigo_barras: string
 }
 
 // Pode ser trocado via variável de ambiente sem precisar mexer no código.
@@ -203,6 +204,7 @@ function normalizarItemAvulso(item: any): ItemAvulso {
     categoria: String(item?.categoria || '').trim(),
     tipo: String(item?.tipo || 'Outros').trim(),
     chave_pix: String(item?.chave_pix || '').trim(),
+    codigo_barras: String(item?.codigo_barras || '').replace(/[^0-9]/g, '').trim(),
   }
 }
 
@@ -230,6 +232,7 @@ Devolva um objeto JSON com exatamente estes campos:
 - "categoria": uma sugestão curta de categoria. Use uma das categorias fixas das regras especiais abaixo quando o documento se encaixar nelas. Para os demais casos, escolha a que fizer mais sentido entre: "Impostos", "Fornecedores", "Salários", "Taxas", "Aluguel", "Outros"
 - "tipo": o meio de pagamento identificado — use exatamente um destes valores: "PIX", "Boleto", "TED", "Folha", "Imposto", "Outros"
 - "chave_pix": se o documento tiver uma chave PIX visível (copia e cola, e-mail, telefone, CPF/CNPJ ou chave aleatória), coloque aqui. Caso contrário, deixe ""
+- "codigo_barras": o código de barras ou a linha digitável do boleto ou guia de imposto, caso exista no documento (apenas os números, sem espaços, pontos ou barras, ex: "34191790010104351004791020150008793240000217000"). Se não for um boleto/tributo com código de barras ou se não encontrar, deixe ""
 
 REGRA ESPECIAL — Guia de ISS Retido (DRAM / "ISSQN Retido" / "Documento de Recolhimento e Arrecadação Municipal"):
 Se o documento for esse tipo de guia municipal, siga exatamente:
@@ -273,11 +276,11 @@ REGRA ESPECIAL — "GFD - Guia do FGTS Digital" (FGTS):
 - "tipo": "Imposto"
 
 Responda APENAS com um objeto JSON válido, sem texto antes ou depois, sem markdown. Exemplos do formato exato:
-{"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","documento":"3224","data_vencimento":"2026-07-30","data_documento":"2026-07-10","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":""}
-{"fornecedor":"Prefeitura de Belo Horizonte","descricao":"ISS Retido - competência 07/2026","documento":"0226231121098","data_vencimento":"2026-08-10","data_documento":"2026-07-01","valor":16.21,"categoria":"Retenção - ISS Serviços Tomados","tipo":"Imposto","chave_pix":""}
-{"fornecedor":"Receita Federal","descricao":"INSS/GPS - competência 06/2026","documento":"07.16.26190.4201400-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":990.89,"categoria":"INSS sobre Salários - GPS","tipo":"Imposto","chave_pix":""}
-{"fornecedor":"Receita Federal","descricao":"DAS - Simples Nacional - competência 06/2026","documento":"07.20.26182.8446529-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":9332.70,"categoria":"Simples Nacional - DAS","tipo":"Imposto","chave_pix":""}
-{"fornecedor":"Caixa Econômica Federal","descricao":"FGTS - competência 06/2026","documento":"0126070848549167-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":220.70,"categoria":"FGTS e Multa de FGTS","tipo":"Imposto","chave_pix":""}
+{"fornecedor":"GOMMA PNEUS LTDA","descricao":"Boleto NF 3224","documento":"3224","data_vencimento":"2026-07-30","data_documento":"2026-07-10","valor":1384.48,"categoria":"Fornecedores","tipo":"Boleto","chave_pix":"","codigo_barras":"34191790010104351004791020150008793240000217000"}
+{"fornecedor":"Prefeitura de Belo Horizonte","descricao":"ISS Retido - competência 07/2026","documento":"0226231121098","data_vencimento":"2026-08-10","data_documento":"2026-07-01","valor":16.21,"categoria":"Retenção - ISS Serviços Tomados","tipo":"Imposto","chave_pix":"","codigo_barras":""}
+{"fornecedor":"Receita Federal","descricao":"INSS/GPS - competência 06/2026","documento":"07.16.26190.4201400-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":990.89,"categoria":"INSS sobre Salários - GPS","tipo":"Imposto","chave_pix":"","codigo_barras":""}
+{"fornecedor":"Receita Federal","descricao":"DAS - Simples Nacional - competência 06/2026","documento":"07.20.26182.8446529-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":9332.70,"categoria":"Simples Nacional - DAS","tipo":"Imposto","chave_pix":"","codigo_barras":""}
+{"fornecedor":"Caixa Econômica Federal","descricao":"FGTS - competência 06/2026","documento":"0126070848549167-0","data_vencimento":"2026-07-20","data_documento":"2026-06-01","valor":220.70,"categoria":"FGTS e Multa de FGTS","tipo":"Imposto","chave_pix":"","codigo_barras":""}
 
 Se não conseguir identificar algum campo com confiança, preencha os que conseguir e deixe os demais em branco ("" ou 0) — não invente dados.`
 

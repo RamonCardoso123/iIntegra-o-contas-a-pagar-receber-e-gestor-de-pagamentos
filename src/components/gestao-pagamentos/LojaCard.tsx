@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Trash2, Upload, Search, Calendar, RefreshCw, ChevronDown,
-  ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send
+  ArrowRightLeft, Sparkles, Edit2, X, Paperclip, FileText, Send,
+  Copy
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ModalAgendamento from '@/components/agendamento/ModalAgendamento'
@@ -76,6 +77,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   const [editandoContaEdicao, setEditandoContaEdicao] = useState(false)
   const [editandoFornecedorEdicao, setEditandoFornecedorEdicao] = useState(false)
   const [contasFinanceiras, setContasFinanceiras] = useState<ContaFinanceiraOpcao[]>([])
+  
+  const [modalAcoesAberto, setModalAcoesAberto] = useState(false)
+  const [itemAcoes, setItemAcoes] = useState<any | null>(null)
+
+  function abrirAcoesLancamento(item: any) {
+    setItemAcoes(item)
+    setModalAcoesAberto(true)
+  }
 
   // Lista de contas do Conta Azul pra buscar por nome (evita digitar
   // errado e não bater na hora de enviar) — usada na edição individual e
@@ -639,14 +648,48 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
   // empresa_id) — usado quando um boleto do DDA ou um funcionário da
   // Folha caiu na loja errada. Não sobra nada na loja de origem.
   const handleConfirmarTransferirLancamentos = async (destinoId: string) => {
-    const ids = itensParaTransferir.map(i => i.id)
-    if (ids.length === 0) return
+    if (itensParaTransferir.length === 0) return
     setTransferindoLancamento(true)
     try {
-      await supabase.from('pagamentos_dda').update({ empresa_id: destinoId }).in('id', ids)
-      await supabase.from('agendamentos').update({ empresa_id: destinoId }).in('id', ids)
+      const itensDda = itensParaTransferir.filter(i => i.origem === 'DDA')
+      const itensAgendamentos = itensParaTransferir.filter(i => i.origem !== 'DDA')
 
-      toast.success(`${ids.length} lançamento(s) transferido(s) para a outra loja!`)
+      // Processa agendamentos normais (apenas atualiza o ID da empresa)
+      if (itensAgendamentos.length > 0) {
+        const idsAgendamentos = itensAgendamentos.map(i => i.id)
+        const { error } = await supabase.from('agendamentos').update({ empresa_id: destinoId }).in('id', idsAgendamentos)
+        if (error) throw error
+      }
+
+      // Processa itens do DDA (converte para agendamento no destino e remove do DDA de origem)
+      if (itensDda.length > 0) {
+        const linhasAgendamento = itensDda.map(item => ({
+          empresa_id: destinoId,
+          fornecedor: String(item.beneficiario || 'Não identificado').trim(),
+          tipo: 'Boleto',
+          valor: Number(item.valor),
+          data_vencimento: item.data_vencimento,
+          status: item.status || 'aberto',
+          descricao: item.descricao || (item.documento ? `Boleto nº ${item.documento}` : 'Lançamento DDA Transferido'),
+          categoria: item.categoria || 'Materiais para Revenda',
+          conta_pagamento: item.conta_pagamento || null,
+          competencia: item.competencia || null,
+          data_pagamento: item.data_pagamento || null,
+          chave_pix: item.chave_pix || null,
+          cpf_cnpj: item.cpf_cnpj || null,
+        }))
+
+        // 1. Insere em agendamentos da loja de destino
+        const { error: insertError } = await supabase.from('agendamentos').insert(linhasAgendamento)
+        if (insertError) throw insertError
+
+        // 2. Remove da tabela pagamentos_dda na origem
+        const idsDda = itensDda.map(i => i.id)
+        const { error: deleteError } = await supabase.from('pagamentos_dda').delete().in('id', idsDda)
+        if (deleteError) throw deleteError
+      }
+
+      toast.success(`${itensParaTransferir.length} lançamento(s) transferido(s) para a outra loja!`)
       setModalTransferirAberto(false)
       setItensParaTransferir([])
       setModalDetalhesDda(false)
@@ -760,6 +803,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             chave_pix: itemEditando.chave_pix,
             cpf_cnpj: itemEditando.cpf_cnpj,
             status: itemEditando.status,
+            codigo_barras: itemEditando.codigo_barras || null,
           }
 
       const { error } = await supabase.from(tabela).update(payload).eq('id', itemEditando.id)
@@ -940,14 +984,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#0b0e14] border-b border-dark-700 text-[10px] uppercase font-bold tracking-widest text-dark-400">
-              <th className="px-6 py-4">TIPO</th>
-              <th className="px-6 py-4">BENEFICIÁRIO</th>
-              <th className="px-6 py-4">CATEGORIA</th>
-              <th className="px-6 py-4">DESCRIÇÃO</th>
-              <th className="px-6 py-4">SITUAÇÃO</th>
-              <th className="px-6 py-4">DATA PG.</th>
-              <th className="px-6 py-4 text-right">VALOR</th>
-              <th className="px-6 py-4 text-center">AÇÕES</th>
+              <th className="px-4 py-2.5">TIPO</th>
+              <th className="px-4 py-2.5">BENEFICIÁRIO</th>
+              <th className="px-4 py-2.5">CATEGORIA</th>
+              <th className="px-4 py-2.5">DESCRIÇÃO</th>
+              <th className="px-4 py-2.5">SITUAÇÃO</th>
+              <th className="px-4 py-2.5">DATA PG.</th>
+              <th className="px-4 py-2.5 text-right">VALOR</th>
+              <th className="px-4 py-2.5 text-center">AÇÕES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-700/50">
@@ -968,20 +1012,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               <>
                 {pagamentosDda.length > 0 && (
                   <tr className="bg-dark-800/20 hover:bg-dark-800/40 transition-colors border-l-4 border-l-blue-500">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-blue-500/10 text-blue-400">DDA</span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-white text-sm">Lançamentos DDA</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">{categoriaDda}</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosDda.length} itens importados</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate">Lançamentos DDA</td>
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate">{categoriaDda}</td>
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosDda.length} itens importados</td>
+                    <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoDda.classe}`}>{situacaoDda.label}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-6 py-4 font-black text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-4 py-2.5 text-sm text-dark-300 font-semibold">—</td>
+                    <td className="px-4 py-2.5 font-black text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosDda.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <button onClick={() => setModalDetalhesDda(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
                         <Search size={16} className="text-dark-300" />
                       </button>
@@ -991,20 +1035,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {pagamentosFolha.length > 0 && (
                   <tr className="bg-dark-800/10 hover:bg-dark-800/30 transition-colors border-l-4 border-l-emerald-500">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5">
                       <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-emerald-500/10 text-emerald-400">FOLHA</span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-white text-sm">Folha de Pagamento</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">{categoriaFolha}</td>
-                    <td className="px-6 py-4 text-sm text-dark-300">Total de {pagamentosFolha.length} colaboradores</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate">Folha de Pagamento</td>
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate">{categoriaFolha}</td>
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate">Total de {pagamentosFolha.length} colaboradores</td>
+                    <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-3 py-1 rounded border uppercase tracking-wider ${situacaoFolha.classe}`}>{situacaoFolha.label}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-dark-300 font-semibold">—</td>
-                    <td className="px-6 py-4 font-black text-rose-400 text-sm text-right tabular-nums">
+                    <td className="px-4 py-2.5 text-sm text-dark-300 font-semibold">—</td>
+                    <td className="px-4 py-2.5 font-black text-rose-400 text-sm text-right tabular-nums">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pagamentosFolha.reduce((acc, curr) => acc + Number(curr.valor), 0))}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <button onClick={() => setModalDetalhesFolha(true)} className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors" title="Visualizar Lançamentos">
                         <Search size={16} className="text-dark-300" />
                       </button>
@@ -1014,7 +1058,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
 
                 {pagamentosIndividuais.map((pag, idx) => (
                   <tr key={pag.id || idx} className="bg-[#11141c] hover:bg-dark-800/30 transition-colors border-b border-dark-700/50">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${
                         pag.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'
                         : pag.origem === 'Transferência' ? 'bg-dark-700 text-dark-300'
@@ -1023,13 +1067,13 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.origem === 'Agendamento' ? 'AGEND' : pag.origem === 'Transferência Recebida' ? 'TRANSF. RECEB.' : pag.origem}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-white text-sm">
+                    <td className="px-4 py-2.5 font-bold text-white text-sm max-w-[140px] truncate" title={pag.fornecedor || pag.beneficiario || ''}>
                       {pag.fornecedor || pag.beneficiario || '—'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-dark-300 max-w-[120px] truncate">
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[110px] truncate" title={pag.categoria || ''}>
                       {pag.categoria || '—'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-dark-300 max-w-[200px] truncate" title={
+                    <td className="px-4 py-2.5 text-sm text-dark-300 max-w-[320px] xl:max-w-[500px] truncate" title={
                       pag.descricao
                         ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
                         : (pag.documento ? `Doc: ${pag.documento}` : '—')
@@ -1038,7 +1082,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         ? `${pag.descricao}${pag.documento ? ' - Doc: ' + pag.documento : ''}`
                         : (pag.documento ? `Doc: ${pag.documento}` : '—')}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-2.5">
                       <button onClick={() => toggleStatus(pag)} className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider transition-colors ${
                         pag.status === 'agendado'
                           ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
@@ -1047,47 +1091,20 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                         {pag.status === 'agendado' ? 'AGENDADO' : 'EM ABERTO'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-sm text-dark-300">
+                    <td className="px-4 py-2.5 text-sm text-dark-300">
                       {pag.data_pagamento ? pag.data_pagamento.split('-').reverse().join('/') : (pag.data_vencimento ? pag.data_vencimento.split('-').reverse().join('/') : '—')}
                     </td>
-                    <td className={`px-6 py-4 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <td className={`px-4 py-2.5 font-bold text-sm text-right tabular-nums ${pag.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pag.valor)}
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {pag.anexo_url && (
-                          <a
-                            href={pag.anexo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-400 hover:text-emerald-300 transition-colors p-1"
-                            title="Ver anexo"
-                          >
-                            <Paperclip size={16} />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => { setItemEditando(pag); setModalEdicaoAberto(true); setEditandoCategoriaEdicao(false); setEditandoContaEdicao(false); setEditandoFornecedorEdicao(false); }}
-                          className="text-dark-400 hover:text-white transition-colors p-1"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        {pag.origem !== 'Transferência' && (
-                          <button
-                            onClick={() => handleEnviarParaContasAPagar([pag])}
-                            className="text-dark-400 hover:text-blue-400 transition-colors p-1"
-                            title="Enviar para Contas a Pagar"
-                          >
-                            <Send size={16} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleExcluirIndividual(pag.id, pag.origem)}
-                          className="text-dark-400 hover:text-rose-400 transition-colors p-1"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        onClick={() => abrirAcoesLancamento(pag)}
+                        className="bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white rounded p-1.5 transition-colors animate-all"
+                        title="Ações do Lançamento"
+                      >
+                        <Search size={16} className="text-dark-300" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1431,6 +1448,12 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                       </select>
                     </div>
                   </div>
+                  {(itemEditando.tipo === 'Boleto' || itemEditando.tipo === 'Imposto') && (
+                    <div>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Código de Barras</label>
+                      <input type="text" value={itemEditando.codigo_barras || ''} onChange={e => setItemEditando({ ...itemEditando, codigo_barras: e.target.value })} className="w-full bg-dark-800 border border-dark-600 text-white rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Código de barras ou linha digitável" />
+                    </div>
+                  )}
                   {itemEditando.anexo_url && (
                     <a href={itemEditando.anexo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 font-semibold">
                       <Paperclip size={14} /> Ver anexo
@@ -1448,6 +1471,158 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {modalAcoesAberto && itemAcoes && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-[#11141c] border border-dark-600 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-dark-700 flex items-center justify-between shrink-0">
+              <h3 className="text-white font-bold text-lg">Ações do Lançamento</h3>
+              <button onClick={() => setModalAcoesAberto(false)} className="text-dark-400 hover:text-white p-1 rounded hover:bg-dark-800 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-6 space-y-5 text-left">
+              {/* Detalhes Rápidos */}
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded ${
+                    itemAcoes.origem === 'Transferência Recebida' ? 'bg-emerald-500/10 text-emerald-400'
+                    : itemAcoes.origem === 'Transferência' ? 'bg-dark-700 text-dark-300'
+                    : 'bg-violet-500/10 text-violet-400'
+                  }`}>
+                    {itemAcoes.origem === 'Agendamento' ? 'Agendamento' : itemAcoes.origem}
+                  </span>
+                  <span className={`text-lg font-black ${itemAcoes.origem === 'Transferência Recebida' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemAcoes.valor)}
+                  </span>
+                </div>
+                <h4 className="text-white font-bold text-base truncate">{itemAcoes.fornecedor || itemAcoes.beneficiario || 'Sem Fornecedor'}</h4>
+                <p className="text-dark-400 text-xs mt-1">Categoria: <span className="text-dark-200 font-semibold">{itemAcoes.categoria || '—'}</span></p>
+                {itemAcoes.descricao && (
+                  <p className="text-dark-300 text-sm mt-3 bg-dark-800/40 p-3 rounded-lg border border-dark-700/50 italic">
+                    "{itemAcoes.descricao}"
+                  </p>
+                )}
+              </div>
+
+              {/* Data Vencimento / Pagamento */}
+              <div className="grid grid-cols-2 gap-4 text-xs bg-dark-850 p-3 rounded-xl border border-dark-700/50">
+                <div>
+                  <span className="text-dark-500 uppercase font-bold block mb-1">Vencimento</span>
+                  <span className="text-white font-semibold">
+                    {itemAcoes.data_vencimento ? itemAcoes.data_vencimento.split('-').reverse().join('/') : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-dark-500 uppercase font-bold block mb-1">Data Pagamento</span>
+                  <span className="text-white font-semibold">
+                    {itemAcoes.data_pagamento ? itemAcoes.data_pagamento.split('-').reverse().join('/') : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Área do Código de Barras (Se houver) */}
+              {itemAcoes.codigo_barras ? (
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Código de Barras</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(itemAcoes.codigo_barras)
+                        toast.success('Código de barras copiado!')
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-black text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-2.5 py-1 rounded"
+                      title="Copiar Código de Barras"
+                    >
+                      <Copy size={12} /> Copiar
+                    </button>
+                  </div>
+                  <div className="font-mono text-xs text-white break-all bg-dark-900/60 p-2.5 rounded border border-dark-700/50 tabular-nums tracking-widest select-all">
+                    {itemAcoes.codigo_barras}
+                  </div>
+                </div>
+              ) : (
+                (itemAcoes.tipo === 'Boleto' || itemAcoes.tipo === 'Imposto') && (
+                  <p className="text-dark-550 text-xs italic text-center">Nenhum código de barras cadastrado.</p>
+                )
+              )}
+
+              {/* Ações disponíveis */}
+              <div className="space-y-2 pt-2 border-t border-dark-700/50">
+                <span className="text-[10px] font-bold text-dark-500 uppercase tracking-widest block mb-1">Ações disponíveis</span>
+                
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Ver Anexo */}
+                  {itemAcoes.anexo_url ? (
+                    <a
+                      href={itemAcoes.anexo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-emerald-400 hover:text-emerald-300 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                    >
+                      <Paperclip size={14} /> Ver Anexo
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex items-center justify-center gap-2 bg-dark-800/40 border border-dark-700/30 text-dark-500 py-2.5 px-3 rounded-xl text-xs font-semibold cursor-not-allowed"
+                    >
+                      <Paperclip size={14} /> Sem Anexo
+                    </button>
+                  )}
+
+                  {/* Editar */}
+                  <button
+                    onClick={() => {
+                      setModalAcoesAberto(false)
+                      setItemEditando(itemAcoes)
+                      setModalEdicaoAberto(true)
+                      setEditandoCategoriaEdicao(false)
+                      setEditandoContaEdicao(false)
+                      setEditandoFornecedorEdicao(false)
+                    }}
+                    className="flex items-center justify-center gap-2 bg-dark-800 hover:bg-dark-700 border border-dark-600 text-white py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Edit2 size={14} /> Editar
+                  </button>
+
+                  {/* Enviar Contas a Pagar */}
+                  {itemAcoes.origem !== 'Transferência' ? (
+                    <button
+                      onClick={() => {
+                        setModalAcoesAberto(false)
+                        handleEnviarParaContasAPagar([itemAcoes])
+                      }}
+                      className="flex items-center justify-center gap-2 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 text-blue-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                    >
+                      <Send size={14} /> Enviar p/ CP
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-center text-dark-500 text-xs italic bg-dark-800/20 rounded-xl border border-dark-700/20">
+                      Transf. externa
+                    </div>
+                  )}
+
+                  {/* Excluir */}
+                  <button
+                    onClick={() => {
+                      setModalAcoesAberto(false)
+                      handleExcluirIndividual(itemAcoes.id, itemAcoes.origem)
+                    }}
+                    className="flex items-center justify-center gap-2 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
       )}
     </div>
