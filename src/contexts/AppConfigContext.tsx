@@ -98,6 +98,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     } else {
       document.documentElement.classList.remove('dark')
     }
+
+    // Cleanup ao desmontar: garante que as telas externas (login, landing page)
+    // voltem a exibir o tema escuro padrão se houver transição de rota SPA.
+    return () => {
+      document.documentElement.classList.add('dark')
+    }
   }, [config.darkMode])
 
   // Carrega a preferência pessoal (cor + nome) do usuário logado — primeiro
