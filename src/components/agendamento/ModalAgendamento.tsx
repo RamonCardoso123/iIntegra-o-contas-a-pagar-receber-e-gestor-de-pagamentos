@@ -210,10 +210,8 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
   const handleSalvar = async () => {
     if (!empresaAtiva) return
     const camposAusentes = [];
-    if (!fornecedor) camposAusentes.push('Fornecedor');
     if (!descricao) camposAusentes.push('Descrição');
     if (!dataVencimento) camposAusentes.push('Vencimento');
-    if (!dataCompetencia) camposAusentes.push('Competência');
     if (!valor) camposAusentes.push('Valor');
     if (!categoria) camposAusentes.push('Categoria');
 
@@ -248,10 +246,10 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
       const { error } = await supabase.from('agendamentos').insert({
         empresa_id: empresaAtiva.id,
-        fornecedor,
+        fornecedor: fornecedor || null,
         descricao,
         data_vencimento: dataVencimento,
-        competencia: dataCompetencia,
+        competencia: dataCompetencia || null,
         valor,
         categoria,
         conta_pagamento: contaPagamento,
@@ -342,7 +340,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Fornecedor / Colaborador <span className="text-rose-400">*</span></label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Fornecedor / Colaborador</label>
               {editandoFornecedor ? (
                 <SelectorFornecedor
                   valorInicial={fornecedor}
@@ -371,7 +369,7 @@ export default function ModalAgendamento({ open, onClose, empresaAtiva, onSucces
               <input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-dark-400 uppercase">Data Competência <span className="text-rose-400">*</span></label>
+              <label className="text-xs font-semibold text-dark-400 uppercase">Data Competência</label>
               <input type="date" value={dataCompetencia} onChange={e => setDataCompetencia(e.target.value)} className="w-full bg-dark-800 border border-dark-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-brand-500 outline-none transition-all" />
             </div>
             <div className="space-y-1">

@@ -771,8 +771,8 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
       toast.error('Preencha Beneficiário, Vencimento e Valor.')
       return
     }
-    if (!ehDda && (!itemEditando.fornecedor || !itemEditando.data_vencimento || !valorNumerico)) {
-      toast.error('Preencha Fornecedor, Vencimento e Valor.')
+    if (!ehDda && (!itemEditando.data_vencimento || !valorNumerico)) {
+      toast.error('Preencha Vencimento e Valor.')
       return
     }
 
@@ -791,14 +791,14 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
             status: itemEditando.status,
           }
         : {
-            fornecedor: itemEditando.fornecedor,
+            fornecedor: itemEditando.fornecedor || null,
             tipo: itemEditando.tipo,
             categoria: itemEditando.categoria,
             descricao: itemEditando.descricao,
             valor: valorNumerico,
             data_vencimento: itemEditando.data_vencimento,
             data_pagamento: itemEditando.data_pagamento || null,
-            competencia: itemEditando.competencia,
+            competencia: itemEditando.competencia || null,
             conta_pagamento: itemEditando.conta_pagamento,
             chave_pix: itemEditando.chave_pix,
             cpf_cnpj: itemEditando.cpf_cnpj,
@@ -1351,7 +1351,7 @@ export default function LojaCard({ empresa, lojasDoGrupo, refreshTick, onTransfe
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Fornecedor / Colaborador <span className="text-rose-400">*</span></label>
+                      <label className="block text-xs font-bold text-dark-400 uppercase mb-1">Fornecedor / Colaborador</label>
                       {editandoFornecedorEdicao ? (
                         <SelectorFornecedor
                           valorInicial={itemEditando.fornecedor || ''}
